@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f0b1e">
+  <title>Housie Game - Play Now!</title>
+  <meta name="description" content="Play Housie online - mark your numbers and win prizes!">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="game-page">
+  <!-- Status Bar -->
+  <div class="game-status-bar" id="statusBar">
+    <div class="status-left">
+      <span class="status-dot" id="connectionDot"></span>
+      <span id="connectionStatus">Connecting...</span>
+    </div>
+    <div class="status-center">
+      <span class="game-badge" id="gameBadge">WAITING</span>
+    </div>
+    <div class="status-right">
+      <span id="playerNameDisplay"></span>
+    </div>
+  </div>
+
+  <!-- Payment Pending Overlay -->
+  <div class="overlay" id="paymentOverlay">
+    <div class="overlay-card glass-card">
+      <div class="overlay-icon">💳</div>
+      <h2>Complete Payment</h2>
+      <p class="overlay-text">Scan the QR code below to pay via PhonePe</p>
+
+      <div class="qr-section" id="qrSection">
+        <div class="qr-placeholder" id="qrPlaceholder">
+          <span>📱</span>
+          <p>QR Code will appear here</p>
+        </div>
+        <img id="qrImage" class="qr-image" style="display:none;" alt="Payment QR Code">
+      </div>
+
+      <div class="payment-details">
+        <div class="payment-row">
+          <span>Tickets</span>
+          <span id="payTicketCount">1</span>
+        </div>
+        <div class="payment-row">
+          <span>Price per ticket</span>
+          <span id="payTicketPrice">₹50</span>
+        </div>
+        <div class="payment-row total">
+          <span>Total</span>
+          <span id="payTotal">₹50</span>
+        </div>
+      </div>
+
+      <div class="payment-note">
+        <span class="note-icon">⏳</span>
+        <span>Waiting for admin to confirm your payment...</span>
+      </div>
+
+      <div class="payment-spinner">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Game Area -->
+  <div class="game-container" id="gameContainer" style="display:none;">
+
+    <!-- Current Number Display -->
+    <div class="current-number-section">
+      <div class="number-ball-large" id="currentNumberBall">
+        <div class="ball-inner">
+          <span class="ball-label">CURRENT</span>
+          <span class="ball-number" id="currentNumberText">--</span>
+        </div>
+      </div>
+      <div class="called-count">
+        <span id="calledCountText">0</span> / 90 numbers called
+      </div>
+    </div>
+
+    <!-- Number Board -->
+    <div class="number-board-section" id="numberBoardSection">
+      <h3 class="section-header">
+        <span class="header-icon">📋</span>
+        Called Numbers
+        <button class="toggle-btn" onclick="toggleNumberBoard()" id="toggleBoardBtn">▼</button>
+      </h3>
+      <div class="number-board" id="numberBoard">
+        <!-- Numbers 1-90 will be rendered here -->
+      </div>
+    </div>
+
+    <!-- Tickets Section -->
+    <div class="tickets-section" id="ticketsSection">
+      <h3 class="section-header">
+        <span class="header-icon">🎫</span>
+        Your Tickets
+        <span class="ticket-swipe-hint" id="swipeHint">← swipe →</span>
+      </h3>
+      <div class="tickets-container" id="ticketsContainer">
+        <!-- Tickets will be rendered here -->
+      </div>
+      <div class="ticket-dots" id="ticketDots">
+        <!-- Dot indicators rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Prize Claims -->
+    <div class="claims-section" id="claimsSection">
+      <h3 class="section-header">
+        <span class="header-icon">🏆</span>
+        Prizes
+      </h3>
+      <div class="claims-grid" id="claimsGrid">
+        <!-- Prize buttons will be rendered here -->
+      </div>
+    </div>
+
+    <!-- Winners Announcements -->
+    <div class="winners-section" id="winnersSection" style="display:none;">
+      <h3 class="section-header">
+        <span class="header-icon">🎉</span>
+        Winners
+      </h3>
+      <div class="winners-list" id="winnersList"></div>
+    </div>
+
+    <!-- Chat Section -->
+    <div class="chat-section" id="chatSection">
+      <h3 class="section-header" onclick="toggleChat()">
+        <span class="header-icon">💬</span>
+        Live Chat
+        <span class="chat-badge" id="chatBadge" style="display:none;">0</span>
+        <button class="toggle-btn" id="toggleChatBtn">▼</button>
+      </h3>
+      <div class="chat-container" id="chatContainer">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-group">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." maxlength="200">
+          <button class="chat-send-btn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <div class="mobile-bottom-bar" id="mobileBottomBar">
+    <button class="mobile-bottom-btn active" onclick="scrollToSection('ticketsSection')">
+      <span class="mob-icon">🎫</span>
+      Tickets
+    </button>
+    <button class="mobile-bottom-btn" onclick="scrollToSection('numberBoardSection')">
+      <span class="mob-icon">📋</span>
+      Board
+    </button>
+    <button class="mobile-bottom-btn" onclick="scrollToSection('claimsSection')">
+      <span class="mob-icon">🏆</span>
+      Prizes
+    </button>
+    <button class="mobile-bottom-btn" onclick="toggleSpeech()" id="soundToggleBtn">
+      <span class="mob-icon" id="soundIcon">🔊</span>
+      Sound
+    </button>
+    <button class="mobile-bottom-btn" onclick="scrollToSection('chatSection'); toggleChat()">
+      <span class="mob-icon">💬</span>
+      Chat
+      <span class="mob-badge" id="mobChatBadge" style="display:none;"></span>
+    </button>
+  </div>
+
+  <!-- Win Celebration Overlay -->
+  <div class="celebration-overlay" id="celebrationOverlay" style="display:none;">
+    <div class="celebration-content">
+      <div class="confetti-container" id="confettiContainer"></div>
+      <div class="win-card glass-card">
+        <div class="win-emoji">🎉🏆🎉</div>
+        <h2 class="win-title" id="winTitle">You Won!</h2>
+        <p class="win-prize" id="winPrize"></p>
+        <p class="win-amount" id="winAmount"></p>
+        <button class="btn-primary" onclick="closeCelebration()">Continue Playing</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prize Announced Toast -->
+  <div class="prize-toast" id="prizeToast" style="display:none;">
+    <div class="prize-toast-content">
+      <span class="prize-toast-icon">🏆</span>
+      <span class="prize-toast-text" id="prizeToastText"></span>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // ==================== GAME STATE ====================
+    const socket = io();
+    let playerId = null;
+    let playerName = '';
+    let playerTickets = [];
+    let calledNumbers = [];
+    let currentNumber = null;
+    let isApproved = false;
+    let isGameStarted = false;
+    let prizes = {};
+    let isSpeechEnabled = true;
+    let chatOpen = true;
+    let unreadChat = 0;
+    let boardVisible = true;
+
+    // Get URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    playerName = urlParams.get('name') || sessionStorage.getItem('playerName') || '';
+    const ticketCount = parseInt(urlParams.get('tickets') || sessionStorage.getItem('ticketCount') || '1');
+
+    if (!playerName) {
+      window.location.href = '/';
+    }
+
+    document.getElementById('playerNameDisplay').textContent = playerName;
+
+    // ==================== INITIALIZATION ====================
+    function init() {
+      renderNumberBoard();
+      // Join the game
+      socket.emit('joinGame', { name: playerName, ticketCount });
+    }
+
+    // ==================== NUMBER BOARD ====================
+    function renderNumberBoard() {
+      const board = document.getElementById('numberBoard');
+      board.innerHTML = '';
+      for (let i = 1; i <= 90; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'board-number';
+        cell.id = `board-num-${i}`;
+        cell.textContent = i;
+        board.appendChild(cell);
+      }
+    }
+
+    function updateNumberBoard() {
+      for (let i = 1; i <= 90; i++) {
+        const cell = document.getElementById(`board-num-${i}`);
+        if (calledNumbers.includes(i)) {
+          cell.classList.add('called');
+          if (i === currentNumber) {
+            cell.classList.add('current');
+          } else {
+            cell.classList.remove('current');
+          }
+        } else {
+          cell.classList.remove('called', 'current');
+        }
+      }
+      document.getElementById('calledCountText').textContent = calledNumbers.length;
+    }
+
+    // ==================== TICKETS ====================
+    function renderTickets() {
+      const container = document.getElementById('ticketsContainer');
+      container.innerHTML = '';
+
+      playerTickets.forEach((ticket, index) => {
+        const ticketEl = document.createElement('div');
+        ticketEl.className = 'ticket-card';
+        ticketEl.id = `ticket-${ticket.id}`;
+
+        let ticketHTML = `
+          <div class="ticket-header">
+            <span class="ticket-label">Ticket ${index + 1}</span>
+            <span class="ticket-id">#${ticket.id}</span>
+          </div>
+          <table class="ticket-grid">
+        `;
+
+        for (let row = 0; row < 3; row++) {
+          ticketHTML += '<tr>';
+          for (let col = 0; col < 9; col++) {
+            const num = ticket.grid[row][col];
+            if (num !== null) {
+              const isCalled = calledNumbers.includes(num);
+              const isCurrent = num === currentNumber;
+              ticketHTML += `<td class="ticket-cell has-number ${isCalled ? 'marked' : ''} ${isCurrent ? 'just-called' : ''}" 
+                data-number="${num}">${num}</td>`;
+            } else {
+              ticketHTML += `<td class="ticket-cell empty"></td>`;
+            }
+          }
+          ticketHTML += '</tr>';
+        }
+
+        ticketHTML += '</table>';
+
+        // Progress bar
+        const totalNums = ticket.grid.flat().filter(n => n !== null).length;
+        const markedNums = ticket.grid.flat().filter(n => n !== null && calledNumbers.includes(n)).length;
+        const progress = (markedNums / totalNums) * 100;
+
+        ticketHTML += `
+          <div class="ticket-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${progress}%"></div>
+            </div>
+            <span class="progress-text">${markedNums}/${totalNums}</span>
+          </div>
+        `;
+
+        ticketEl.innerHTML = ticketHTML;
+        container.appendChild(ticketEl);
+      });
+    }
+
+    function updateTickets() {
+      playerTickets.forEach((ticket) => {
+        const ticketEl = document.getElementById(`ticket-${ticket.id}`);
+        if (!ticketEl) return;
+
+        // Update cells
+        const cells = ticketEl.querySelectorAll('.ticket-cell.has-number');
+        cells.forEach(cell => {
+          const num = parseInt(cell.dataset.number);
+          if (calledNumbers.includes(num)) {
+            cell.classList.add('marked');
+            if (num === currentNumber) {
+              cell.classList.add('just-called');
+              setTimeout(() => cell.classList.remove('just-called'), 2000);
+            }
+          }
+        });
+
+        // Update progress
+        const totalNums = ticket.grid.flat().filter(n => n !== null).length;
+        const markedNums = ticket.grid.flat().filter(n => n !== null && calledNumbers.includes(n)).length;
+        const progress = (markedNums / totalNums) * 100;
+        const progressFill = ticketEl.querySelector('.progress-fill');
+        const progressText = ticketEl.querySelector('.progress-text');
+        if (progressFill) progressFill.style.width = progress + '%';
+        if (progressText) progressText.textContent = `${markedNums}/${totalNums}`;
+      });
+    }
+
+    // ==================== PRIZES ====================
+    function renderPrizes() {
+      const grid = document.getElementById('claimsGrid');
+      grid.innerHTML = '';
+
+      const prizeConfig = [
+        { key: 'earlyFive', name: 'Early Five', icon: '⚡', desc: 'First to mark 5 numbers' },
+        { key: 'topLine', name: 'Top Line', icon: '📏', desc: 'Complete top row' },
+        { key: 'middleLine', name: 'Middle Line', icon: '📐', desc: 'Complete middle row' },
+        { key: 'bottomLine', name: 'Bottom Line', icon: '📏', desc: 'Complete bottom row' },
+        { key: 'fullHouse', name: 'Full House', icon: '🏠', desc: 'All 15 numbers' },
+        { key: 'secondFullHouse', name: '2nd Full House', icon: '🏠', desc: 'Second full house' }
+      ];
+
+      prizeConfig.forEach(p => {
+        const prizeData = prizes[p.key] || { amount: 0, claimed: false };
+        const div = document.createElement('div');
+        div.className = `claim-card ${prizeData.claimed ? 'claimed' : ''}`;
+
+        div.innerHTML = `
+          <div class="claim-info">
+            <span class="claim-icon">${p.icon}</span>
+            <div>
+              <span class="claim-name">${p.name}</span>
+              <span class="claim-amount">₹${prizeData.amount}</span>
+            </div>
+          </div>
+          ${prizeData.claimed ? 
+            `<div class="claim-winner">
+              <span class="winner-badge">🏆 Won by ${prizeData.claimedBy?.name || 'Unknown'}</span>
+            </div>` :
+            `<div class="claim-buttons">
+              ${playerTickets.map((t, i) => `
+                <button class="claim-btn" onclick="claimPrize('${p.key}', '${t.id}')" 
+                  ${!isGameStarted ? 'disabled' : ''}>
+                  Ticket ${i + 1}
+                </button>
+              `).join('')}
+            </div>`
+          }
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    function claimPrize(prizeType, ticketId) {
+      if (!isGameStarted || !isApproved) return;
+      socket.emit('claimPrize', { playerId, ticketId, prizeType });
+    }
+
+    // ==================== SPEECH ====================
+    function speakNumber(number) {
+      if (!isSpeechEnabled) return;
+      if (!('speechSynthesis' in window)) return;
+
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const numberNames = {
+        1: 'Number One', 2: 'Number Two', 3: 'Number Three', 4: 'Number Four',
+        5: 'Number Five', 6: 'Number Six', 7: 'Number Seven', 8: 'Number Eight',
+        9: 'Number Nine', 10: 'Number Ten', 11: 'Number Eleven', 12: 'Number Twelve',
+        13: 'Unlucky Thirteen', 14: 'Number Fourteen', 15: 'Number Fifteen',
+        16: 'Sweet Sixteen', 17: 'Number Seventeen', 18: 'Number Eighteen',
+        19: 'Number Nineteen', 20: 'One Score - Twenty', 21: 'Key of the Door - Twenty One',
+        22: 'Two Little Ducks - Twenty Two', 23: 'Number Twenty Three',
+        24: 'Number Twenty Four', 25: 'Number Twenty Five',
+        26: 'Number Twenty Six', 27: 'Number Twenty Seven',
+        28: 'Number Twenty Eight', 29: 'Number Twenty Nine',
+        30: 'Dirty Thirty', 31: 'Number Thirty One',
+        32: 'Number Thirty Two', 33: 'Number Thirty Three',
+        34: 'Number Thirty Four', 35: 'Number Thirty Five',
+        36: 'Number Thirty Six', 37: 'Number Thirty Seven',
+        38: 'Number Thirty Eight', 39: 'Number Thirty Nine',
+        40: 'Naughty Forty', 41: 'Number Forty One',
+        42: 'Number Forty Two', 43: 'Number Forty Three',
+        44: 'Number Forty Four', 45: 'Number Forty Five',
+        46: 'Number Forty Six', 47: 'Number Forty Seven',
+        48: 'Number Forty Eight', 49: 'Number Forty Nine',
+        50: 'Half Century - Fifty', 51: 'Number Fifty One',
+        52: 'Number Fifty Two', 53: 'Number Fifty Three',
+        54: 'Number Fifty Four', 55: 'Number Fifty Five',
+        56: 'Number Fifty Six', 57: 'Number Fifty Seven',
+        58: 'Number Fifty Eight', 59: 'Number Fifty Nine',
+        60: 'Five Dozen - Sixty', 61: 'Number Sixty One',
+        62: 'Number Sixty Two', 63: 'Number Sixty Three',
+        64: 'Number Sixty Four', 65: 'Number Sixty Five',
+        66: 'Clickety Click - Sixty Six', 67: 'Number Sixty Seven',
+        68: 'Number Sixty Eight', 69: 'Number Sixty Nine',
+        70: 'Three Score and Ten - Seventy', 71: 'Number Seventy One',
+        72: 'Number Seventy Two', 73: 'Number Seventy Three',
+        74: 'Number Seventy Four', 75: 'Number Seventy Five',
+        76: 'Number Seventy Six', 77: 'Sunset Strip - Seventy Seven',
+        78: 'Number Seventy Eight', 79: 'Number Seventy Nine',
+        80: 'Gandhi\'s Breakfast - Eighty', 81: 'Number Eighty One',
+        82: 'Number Eighty Two', 83: 'Number Eighty Three',
+        84: 'Number Eighty Four', 85: 'Number Eighty Five',
+        86: 'Number Eighty Six', 87: 'Number Eighty Seven',
+        88: 'Two Fat Ladies - Eighty Eight', 89: 'Number Eighty Nine',
+        90: 'Top of the Shop - Ninety'
+      };
+
+      const text = numberNames[number] || `Number ${number}`;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.lang = 'en-IN';
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // ==================== CHAT ====================
+    function toggleChat() {
+      chatOpen = !chatOpen;
+      document.getElementById('chatContainer').style.display = chatOpen ? 'flex' : 'none';
+      document.getElementById('toggleChatBtn').textContent = chatOpen ? '▲' : '▼';
+      if (chatOpen) {
+        unreadChat = 0;
+        document.getElementById('chatBadge').style.display = 'none';
+      }
+    }
+
+    function sendChat() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg) return;
+      socket.emit('chatMessage', { name: playerName, message: msg });
+      input.value = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const chatInput = document.getElementById('chatInput');
+      if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') sendChat();
+        });
+      }
+    });
+
+    function addChatMessage(name, message, isSystem = false) {
+      const container = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = `chat-message ${isSystem ? 'system' : ''} ${name === playerName ? 'own' : ''}`;
+
+      if (isSystem) {
+        div.innerHTML = `<span class="chat-system-text">${message}</span>`;
+      } else {
+        div.innerHTML = `
+          <span class="chat-name">${name}</span>
+          <span class="chat-text">${escapeHtml(message)}</span>
+        `;
+      }
+
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+
+      if (!chatOpen) {
+        unreadChat++;
+        const badge = document.getElementById('chatBadge');
+        badge.textContent = unreadChat;
+        badge.style.display = 'inline-flex';
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ==================== UI HELPERS ====================
+    function toggleNumberBoard() {
+      boardVisible = !boardVisible;
+      document.getElementById('numberBoard').style.display = boardVisible ? 'grid' : 'none';
+      document.getElementById('toggleBoardBtn').textContent = boardVisible ? '▲' : '▼';
+    }
+
+    function showToast(msg, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function showCelebration(title, prize, amount) {
+      document.getElementById('winTitle').textContent = title;
+      document.getElementById('winPrize').textContent = prize;
+      document.getElementById('winAmount').textContent = amount ? `₹${amount}` : '';
+      document.getElementById('celebrationOverlay').style.display = 'flex';
+      createConfetti();
+    }
+
+    function closeCelebration() {
+      document.getElementById('celebrationOverlay').style.display = 'none';
+    }
+
+    function createConfetti() {
+      const container = document.getElementById('confettiContainer');
+      container.innerHTML = '';
+      const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff6b9d', '#c44dff'];
+      for (let i = 0; i < 80; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = Math.random() * 100 + '%';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = Math.random() * 3 + 's';
+        confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+        container.appendChild(confetti);
+      }
+    }
+
+    function showPrizeToast(text) {
+      const toast = document.getElementById('prizeToast');
+      document.getElementById('prizeToastText').textContent = text;
+      toast.style.display = 'flex';
+      setTimeout(() => toast.style.display = 'none', 5000);
+    }
+
+    // ==================== SOCKET EVENTS ====================
+
+    // Connected
+    socket.on('connect', () => {
+      document.getElementById('connectionDot').className = 'status-dot connected';
+      document.getElementById('connectionStatus').textContent = 'Connected';
+
+      // Check for reconnection
+      const savedPlayerId = sessionStorage.getItem('playerId');
+      if (savedPlayerId && !playerId) {
+        socket.emit('reconnect', { playerId: savedPlayerId });
+      }
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('connectionDot').className = 'status-dot disconnected';
+      document.getElementById('connectionStatus').textContent = 'Disconnected';
+    });
+
+    // Joined game
+    socket.on('joinedGame', (data) => {
+      playerId = data.playerId;
+      playerTickets = data.tickets;
+      prizes = data.prizes;
+      calledNumbers = data.calledNumbers || [];
+      currentNumber = data.currentNumber;
+      isGameStarted = data.isGameStarted;
+
+      sessionStorage.setItem('playerId', playerId);
+
+      // Show payment overlay if not approved
+      if (!data.approved) {
+        document.getElementById('paymentOverlay').style.display = 'flex';
+        document.getElementById('payTicketCount').textContent = data.tickets.length;
+        document.getElementById('payTicketPrice').textContent = '₹' + data.ticketPrice;
+        document.getElementById('payTotal').textContent = '₹' + data.totalAmount;
+
+        if (data.qrCodePath) {
+          document.getElementById('qrImage').src = data.qrCodePath;
+          document.getElementById('qrImage').style.display = 'block';
+          document.getElementById('qrPlaceholder').style.display = 'none';
+        }
+      } else {
+        isApproved = true;
+        document.getElementById('paymentOverlay').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'block';
+      }
+
+      renderTickets();
+      renderTicketDots();
+      renderPrizes();
+      updateNumberBoard();
+
+      if (isGameStarted) {
+        document.getElementById('gameBadge').textContent = 'LIVE';
+        document.getElementById('gameBadge').className = 'game-badge live';
+      }
+    });
+
+    // Payment approved
+    socket.on('paymentApproved', () => {
+      isApproved = true;
+      document.getElementById('paymentOverlay').style.display = 'none';
+      document.getElementById('gameContainer').style.display = 'block';
+      showToast('✅ Payment approved! You\'re in the game!', 'success');
+      renderTickets();
+      renderTicketDots();
+      renderPrizes();
+      updateNumberBoard();
+    });
+
+    // Payment rejected
+    socket.on('paymentRejected', () => {
+      document.getElementById('paymentOverlay').innerHTML = `
+        <div class="overlay-card glass-card">
+          <div class="overlay-icon">❌</div>
+          <h2>Payment Rejected</h2>
+          <p>Your payment was not verified. Please try again.</p>
+          <a href="/" class="btn-primary">Go Back</a>
+        </div>
+      `;
+    });
+
+    // Reconnected
+    socket.on('reconnected', (data) => {
+      playerId = data.playerId;
+      playerTickets = data.tickets;
+      isApproved = data.approved;
+      calledNumbers = data.calledNumbers || [];
+      currentNumber = data.currentNumber;
+      prizes = data.prizes;
+      isGameStarted = data.isGameStarted;
+
+      if (isApproved) {
+        document.getElementById('paymentOverlay').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'block';
+      }
+
+      renderTickets();
+      renderTicketDots();
+      renderPrizes();
+      updateNumberBoard();
+      showToast('🔄 Reconnected!', 'info');
+    });
+
+    socket.on('reconnectFailed', () => {
+      // Re-join
+      socket.emit('joinGame', { name: playerName, ticketCount });
+    });
+
+    // Game started
+    socket.on('gameStarted', (data) => {
+      isGameStarted = true;
+      prizes = data.prizes;
+      document.getElementById('gameBadge').textContent = 'LIVE';
+      document.getElementById('gameBadge').className = 'game-badge live';
+      renderPrizes();
+      showToast('🎮 Game has started! Good luck!', 'success');
+      addChatMessage('', '🎮 Game has started! Good luck everyone!', true);
+
+      // Speak announcement
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance('Game has started! Good luck everyone!');
+        utterance.rate = 0.9;
+        utterance.lang = 'en-IN';
+        window.speechSynthesis.speak(utterance);
+      }
+    });
+
+    // Number called
+    socket.on('numberCalled', (data) => {
+      currentNumber = data.number;
+      calledNumbers = data.calledNumbers;
+
+      // Update current number display with animation
+      const ballEl = document.getElementById('currentNumberBall');
+      const numText = document.getElementById('currentNumberText');
+
+      ballEl.classList.add('pop-in');
+      setTimeout(() => ballEl.classList.remove('pop-in'), 600);
+
+      numText.textContent = data.number;
+
+      updateNumberBoard();
+      updateTickets();
+
+      // Speak the number
+      speakNumber(data.number);
+    });
+
+    // Game complete
+    socket.on('gameComplete', (data) => {
+      isGameStarted = false;
+      document.getElementById('gameBadge').textContent = 'COMPLETED';
+      document.getElementById('gameBadge').className = 'game-badge completed';
+      showToast('🏁 ' + data.message, 'info');
+      addChatMessage('', '🏁 ' + data.message, true);
+    });
+
+    // Game ended
+    socket.on('gameEnded', (data) => {
+      isGameStarted = false;
+      prizes = data.prizes;
+      document.getElementById('gameBadge').textContent = 'ENDED';
+      document.getElementById('gameBadge').className = 'game-badge ended';
+      renderPrizes();
+      showToast('🏁 Game has ended!', 'info');
+    });
+
+    // Game reset
+    socket.on('gameReset', () => {
+      sessionStorage.removeItem('playerId');
+      window.location.href = '/';
+    });
+
+    // Claim result
+    socket.on('claimResult', (data) => {
+      if (data.success) {
+        showCelebration('🎉 You Won!', data.prizeType.replace(/([A-Z])/g, ' $1').trim(), data.amount);
+        showToast(data.message, 'success');
+      } else {
+        showToast(data.message, 'error');
+      }
+    });
+
+    // Prize claimed by someone
+    socket.on('prizeClaimed', (data) => {
+      prizes = data.prizes;
+      renderPrizes();
+      showPrizeToast(`🏆 ${data.playerName} won ${data.prizeType.replace(/([A-Z])/g, ' $1').trim()}! (₹${data.amount})`);
+      addChatMessage('', `🏆 ${data.playerName} won ${data.prizeType.replace(/([A-Z])/g, ' $1').trim()}!`, true);
+    });
+
+    // Chat
+    socket.on('chatMessage', (data) => {
+      addChatMessage(data.name, data.message);
+    });
+
+    // Settings updated
+    socket.on('settingsUpdated', (data) => {
+      if (data.prizes) {
+        prizes = data.prizes;
+        renderPrizes();
+      }
+    });
+
+    // Player events
+    socket.on('newPlayerJoined', (data) => {
+      addChatMessage('', `👋 ${data.name} joined the game!`, true);
+    });
+
+    socket.on('playerDisconnected', (data) => {
+      addChatMessage('', `👋 ${data.name} disconnected`, true);
+    });
+
+    // Auto call
+    socket.on('autoCallStarted', () => {
+      showToast('🔄 Auto-call started!', 'info');
+    });
+
+    socket.on('autoCallStopped', () => {
+      showToast('⏸️ Auto-call paused', 'info');
+    });
+
+    // ==================== MOBILE HELPERS ====================
+    function scrollToSection(sectionId) {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        const topOffset = 60; // account for status bar
+        const y = el.getBoundingClientRect().top + window.pageYOffset - topOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+
+      // Update active bottom button
+      document.querySelectorAll('.mobile-bottom-btn').forEach(btn => btn.classList.remove('active'));
+      event.currentTarget?.classList.add('active');
+    }
+
+    function toggleSpeech() {
+      isSpeechEnabled = !isSpeechEnabled;
+      const icon = document.getElementById('soundIcon');
+      const btn = document.getElementById('soundToggleBtn');
+      if (isSpeechEnabled) {
+        icon.textContent = '🔊';
+        btn.classList.remove('active');
+        showToast('🔊 Sound ON', 'info');
+      } else {
+        icon.textContent = '🔇';
+        btn.classList.add('active');
+        showToast('🔇 Sound OFF', 'info');
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    // Ticket dot indicators for swipe
+    function renderTicketDots() {
+      const dotsContainer = document.getElementById('ticketDots');
+      if (!dotsContainer || playerTickets.length <= 1) {
+        if (dotsContainer) dotsContainer.innerHTML = '';
+        return;
+      }
+
+      dotsContainer.innerHTML = '';
+      playerTickets.forEach((_, i) => {
+        const dot = document.createElement('span');
+        dot.className = `ticket-dot ${i === 0 ? 'active' : ''}`;
+        dotsContainer.appendChild(dot);
+      });
+
+      // Track scroll to update dots
+      const container = document.getElementById('ticketsContainer');
+      container.addEventListener('scroll', () => {
+        const scrollLeft = container.scrollLeft;
+        const cardWidth = container.firstElementChild?.offsetWidth || 1;
+        const gap = 12;
+        const activeIndex = Math.round(scrollLeft / (cardWidth + gap));
+
+        dotsContainer.querySelectorAll('.ticket-dot').forEach((dot, i) => {
+          dot.classList.toggle('active', i === activeIndex);
+        });
+      }, { passive: true });
+
+      // Hide swipe hint after first scroll
+      container.addEventListener('scroll', () => {
+        const hint = document.getElementById('swipeHint');
+        if (hint) hint.style.display = 'none';
+      }, { once: true, passive: true });
+    }
+
+    // Sync mobile chat badge
+    function updateMobileChatBadge() {
+      const mobBadge = document.getElementById('mobChatBadge');
+      if (mobBadge) {
+        if (unreadChat > 0) {
+          mobBadge.textContent = unreadChat;
+          mobBadge.style.display = 'inline-flex';
+        } else {
+          mobBadge.style.display = 'none';
+        }
+      }
+    }
+
+    // Override addChatMessage to also update mobile badge
+    const _origAddChatMessage = addChatMessage;
+    addChatMessage = function(name, message, isSystem) {
+      _origAddChatMessage(name, message, isSystem);
+      updateMobileChatBadge();
+    };
+
+    // ==================== INIT ====================
+    init();
+  </script>
+
+</body>
+</html>

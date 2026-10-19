@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f0b1e">
+  <title>Housie Admin - Control Panel</title>
+  <meta name="description" content="Housie Game Admin Panel - Manage games, players, and prizes">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="admin-page">
+
+  <!-- Admin Login -->
+  <div class="admin-login" id="adminLogin">
+    <div class="login-card glass-card">
+      <div class="login-icon">🔐</div>
+      <h2>Admin Login</h2>
+      <p>Enter admin password to access controls</p>
+      <div class="form-group">
+        <div class="input-wrapper">
+          <span class="input-icon">🔑</span>
+          <input type="password" id="adminPassword" class="form-input" placeholder="Admin Password" value="admin123">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="adminLogin()">Login</button>
+      <p class="form-hint" style="margin-top: 12px;">Default password: admin123</p>
+    </div>
+  </div>
+
+  <!-- Admin Dashboard -->
+  <div class="admin-dashboard" id="adminDashboard" style="display:none;">
+
+    <!-- Top Bar -->
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <span class="admin-logo">🎱 HOUSIE</span>
+        <span class="admin-badge">ADMIN</span>
+      </div>
+      <div class="topbar-center">
+        <span class="game-status-indicator" id="gameStatusIndicator">
+          <span class="status-dot"></span>
+          <span id="gameStatusText">Not Started</span>
+        </span>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-btn" onclick="window.open('/', '_blank')">👁️ Player View</button>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="admin-stats">
+      <div class="stat-card">
+        <span class="stat-icon">👥</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statPlayers">0</span>
+          <span class="stat-label">Players</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🎫</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statTickets">0</span>
+          <span class="stat-label">Tickets</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">💰</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statRevenue">₹0</span>
+          <span class="stat-label">Revenue</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🔢</span>
+        <div class="stat-info">
+          <span class="stat-value" id="statCalled">0/90</span>
+          <span class="stat-label">Numbers Called</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="admin-grid">
+
+      <!-- Left Column -->
+      <div class="admin-column">
+
+        <!-- Number Caller -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">🔢 Number Caller</h3>
+
+          <div class="caller-section">
+            <div class="current-number-admin" id="currentNumberAdmin">
+              <span class="admin-ball-label">CURRENT</span>
+              <span class="admin-ball-number" id="adminCurrentNumber">--</span>
+            </div>
+
+            <div class="caller-controls">
+              <button class="btn-call" id="btnCallNumber" onclick="callNumber()" disabled>
+                🎲 Call Next Number
+              </button>
+
+              <div class="auto-call-controls">
+                <div class="speed-control">
+                  <label>Speed (seconds):</label>
+                  <input type="range" id="autoCallSpeed" min="2" max="15" value="5" step="1"
+                    oninput="document.getElementById('speedDisplay').textContent = this.value + 's'">
+                  <span id="speedDisplay">5s</span>
+                </div>
+                <div class="auto-call-buttons">
+                  <button class="btn-auto-start" id="btnAutoStart" onclick="startAutoCall()" disabled>
+                    ▶ Auto Call
+                  </button>
+                  <button class="btn-auto-stop" id="btnAutoStop" onclick="stopAutoCall()" disabled>
+                    ⏸ Pause
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Called Numbers Mini Board -->
+          <div class="admin-number-board" id="adminNumberBoard">
+            <!-- Numbers rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Game Controls -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">🎮 Game Controls</h3>
+          <div class="game-control-buttons">
+            <button class="btn-start-game" id="btnStartGame" onclick="startGame()">
+              ▶ Start Game
+            </button>
+            <button class="btn-end-game" id="btnEndGame" onclick="endGame()" disabled>
+              ⏹ End Game
+            </button>
+            <button class="btn-reset-game" onclick="resetGame()">
+              🔄 Reset Everything
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="admin-column">
+
+        <!-- QR Code Upload -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">📱 Payment QR Code</h3>
+          <div class="qr-upload-section">
+            <div class="qr-preview" id="qrPreview">
+              <img id="adminQrImage" class="admin-qr-image" style="display:none;" alt="QR Code">
+              <div class="qr-upload-placeholder" id="qrUploadPlaceholder">
+                <span>📤</span>
+                <p>Upload PhonePe QR Code</p>
+              </div>
+            </div>
+            <input type="file" id="qrFileInput" accept="image/*" style="display:none;" onchange="uploadQR()">
+            <button class="btn-secondary" onclick="document.getElementById('qrFileInput').click()">
+              📤 Upload QR Image
+            </button>
+          </div>
+        </div>
+
+        <!-- Prize Settings -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">🏆 Prize Settings</h3>
+          <div class="prize-settings">
+            <div class="prize-setting-row">
+              <label>⚡ Early Five</label>
+              <div class="prize-input-wrapper">
+                <span>₹</span>
+                <input type="number" id="prizeEarlyFive" class="prize-input" value="100" min="0">
+              </div>
+              <span class="prize-status" id="statusEarlyFive">—</span>
+            </div>
+            <div class="prize-setting-row">
+              <label>📏 Top Line</label>
+              <div class="prize-input-wrapper">
+                <span>₹</span>
+                <input type="number" id="prizeTopLine" class="prize-input" value="200" min="0">
+              </div>
+              <span class="prize-status" id="statusTopLine">—</span>
+            </div>
+            <div class="prize-setting-row">
+              <label>📐 Middle Line</label>
+              <div class="prize-input-wrapper">
+                <span>₹</span>
+                <input type="number" id="prizeMiddleLine" class="prize-input" value="200" min="0">
+              </div>
+              <span class="prize-status" id="statusMiddleLine">—</span>
+            </div>
+            <div class="prize-setting-row">
+              <label>📏 Bottom Line</label>
+              <div class="prize-input-wrapper">
+                <span>₹</span>
+                <input type="number" id="prizeBottomLine" class="prize-input" value="200" min="0">
+              </div>
+              <span class="prize-status" id="statusBottomLine">—</span>
+            </div>
+            <div class="prize-setting-row featured">
+              <label>🏠 Full House</label>
+              <div class="prize-input-wrapper">
+                <span>₹</span>
+                <input type="number" id="prizeFullHouse" class="prize-input" value="500" min="0">
+              </div>
+              <span class="prize-status" id="statusFullHouse">—</span>
+            </div>
+            <div class="prize-setting-row">
+              <label>🏠 2nd Full House</label>
+              <div class="prize-input-wrapper">
+                <span>₹</span>
+                <input type="number" id="prizeSecondFullHouse" class="prize-input" value="300" min="0">
+              </div>
+              <span class="prize-status" id="statusSecondFullHouse">—</span>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="savePrizes()" style="margin-top:16px; width:100%;">
+            💾 Save Prize Settings
+          </button>
+        </div>
+
+        <!-- Game Settings -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">⚙️ Game Settings</h3>
+          <div class="settings-grid">
+            <div class="setting-row">
+              <label>Ticket Price (₹)</label>
+              <input type="number" id="settingTicketPrice" class="setting-input" value="50" min="1">
+            </div>
+            <div class="setting-row">
+              <label>Max Tickets / Player</label>
+              <input type="number" id="settingMaxTickets" class="setting-input" value="6" min="1" max="10">
+            </div>
+            <div class="setting-row">
+              <label>New Admin Password</label>
+              <input type="password" id="settingAdminPassword" class="setting-input" placeholder="Leave blank to keep">
+            </div>
+          </div>
+          <button class="btn-primary" onclick="saveSettings()" style="margin-top:16px; width:100%;">
+            💾 Save Settings
+          </button>
+        </div>
+
+        <!-- Pending Approvals -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">
+            ⏳ Pending Approvals
+            <span class="pending-badge" id="pendingBadge">0</span>
+          </h3>
+          <div class="approvals-list" id="approvalsList">
+            <p class="empty-text">No pending approvals</p>
+          </div>
+        </div>
+
+        <!-- Players List -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">👥 Players</h3>
+          <div class="players-list" id="playersList">
+            <p class="empty-text">No players yet</p>
+          </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="admin-card glass-card">
+          <h3 class="admin-card-title">📋 Activity Log</h3>
+          <div class="activity-log" id="activityLog">
+            <p class="empty-text">No activity yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let isGameStarted = false;
+    let calledNumbers = [];
+    let isAutoCalling = false;
+
+    // ==================== AUTH ====================
+    function adminLogin() {
+      const password = document.getElementById('adminPassword').value;
+      fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          sessionStorage.setItem('adminToken', data.token);
+          document.getElementById('adminLogin').style.display = 'none';
+          document.getElementById('adminDashboard').style.display = 'block';
+          initAdmin();
+        } else {
+          showToast('Invalid password!', 'error');
+        }
+      })
+      .catch(() => showToast('Login failed!', 'error'));
+    }
+
+    document.getElementById('adminPassword').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') adminLogin();
+    });
+
+    // ==================== INIT ====================
+    function initAdmin() {
+      renderAdminNumberBoard();
+      loadGameState();
+      socket.emit('getPendingApprovals');
+      socket.emit('getPlayerList');
+
+      // Load existing QR
+      fetch('/api/qr-code')
+        .then(r => r.json())
+        .then(data => {
+          if (data.path) {
+            document.getElementById('adminQrImage').src = data.path;
+            document.getElementById('adminQrImage').style.display = 'block';
+            document.getElementById('qrUploadPlaceholder').style.display = 'none';
+          }
+        });
+    }
+
+    function loadGameState() {
+      fetch('/api/game/state')
+        .then(r => r.json())
+        .then(state => {
+          isGameStarted = state.isGameStarted;
+          calledNumbers = state.calledNumbers || [];
+
+          // Update UI
+          updateGameStatus();
+          updateAdminNumberBoard();
+          updateStats(state);
+
+          // Load settings
+          document.getElementById('settingTicketPrice').value = state.ticketPrice;
+          document.getElementById('settingMaxTickets').value = state.maxTicketsPerPlayer;
+
+          // Load prizes
+          if (state.prizes) {
+            Object.keys(state.prizes).forEach(key => {
+              const input = document.getElementById('prize' + key.charAt(0).toUpperCase() + key.slice(1));
+              if (input) input.value = state.prizes[key].amount;
+
+              const status = document.getElementById('status' + key.charAt(0).toUpperCase() + key.slice(1));
+              if (status) {
+                if (state.prizes[key].claimed) {
+                  status.textContent = '✅ ' + (state.prizes[key].claimedBy?.name || 'Won');
+                  status.className = 'prize-status won';
+                } else {
+                  status.textContent = '—';
+                  status.className = 'prize-status';
+                }
+              }
+            });
+          }
+
+          // Update current number
+          if (state.currentNumber) {
+            document.getElementById('adminCurrentNumber').textContent = state.currentNumber;
+          }
+        });
+    }
+
+    // ==================== NUMBER BOARD ====================
+    function renderAdminNumberBoard() {
+      const board = document.getElementById('adminNumberBoard');
+      board.innerHTML = '';
+      for (let i = 1; i <= 90; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'admin-board-num';
+        cell.id = `admin-num-${i}`;
+        cell.textContent = i;
+        board.appendChild(cell);
+      }
+    }
+
+    function updateAdminNumberBoard() {
+      for (let i = 1; i <= 90; i++) {
+        const cell = document.getElementById(`admin-num-${i}`);
+        if (!cell) continue;
+        if (calledNumbers.includes(i)) {
+          cell.classList.add('called');
+        } else {
+          cell.classList.remove('called');
+        }
+      }
+      document.getElementById('statCalled').textContent = `${calledNumbers.length}/90`;
+    }
+
+    // ==================== GAME CONTROLS ====================
+    function startGame() {
+      if (confirm('Start the game? Make sure all players have been approved.')) {
+        // Save prizes first
+        savePrizes(() => {
+          socket.emit('startGame');
+          addLog('🎮 Game started!');
+        });
+      }
+    }
+
+    function endGame() {
+      if (confirm('End the current game?')) {
+        socket.emit('endGame');
+        addLog('🏁 Game ended');
+      }
+    }
+
+    function resetGame() {
+      if (confirm('⚠️ RESET everything? This will remove all players and data!')) {
+        socket.emit('resetGame');
+        calledNumbers = [];
+        updateAdminNumberBoard();
+        addLog('🔄 Game reset');
+        document.getElementById('adminCurrentNumber').textContent = '--';
+      }
+    }
+
+    function callNumber() {
+      socket.emit('callNumber');
+    }
+
+    function startAutoCall() {
+      const speed = parseInt(document.getElementById('autoCallSpeed').value) * 1000;
+      socket.emit('startAutoCall', { speed });
+      isAutoCalling = true;
+      document.getElementById('btnAutoStart').disabled = true;
+      document.getElementById('btnAutoStop').disabled = false;
+      addLog(`🔄 Auto-call started (every ${speed/1000}s)`);
+    }
+
+    function stopAutoCall() {
+      socket.emit('stopAutoCall');
+      isAutoCalling = false;
+      document.getElementById('btnAutoStart').disabled = false;
+      document.getElementById('btnAutoStop').disabled = true;
+      addLog('⏸ Auto-call paused');
+    }
+
+    function updateGameStatus() {
+      const indicator = document.getElementById('gameStatusIndicator');
+      const text = document.getElementById('gameStatusText');
+      const startBtn = document.getElementById('btnStartGame');
+      const endBtn = document.getElementById('btnEndGame');
+      const callBtn = document.getElementById('btnCallNumber');
+      const autoStartBtn = document.getElementById('btnAutoStart');
+
+      if (isGameStarted) {
+        text.textContent = 'Game Live';
+        indicator.className = 'game-status-indicator live';
+        startBtn.disabled = true;
+        endBtn.disabled = false;
+        callBtn.disabled = false;
+        autoStartBtn.disabled = false;
+      } else {
+        text.textContent = 'Not Started';
+        indicator.className = 'game-status-indicator idle';
+        startBtn.disabled = false;
+        endBtn.disabled = true;
+        callBtn.disabled = true;
+        autoStartBtn.disabled = true;
+        document.getElementById('btnAutoStop').disabled = true;
+      }
+    }
+
+    // ==================== QR UPLOAD ====================
+    function uploadQR() {
+      const fileInput = document.getElementById('qrFileInput');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('qrcode', file);
+
+      fetch('/api/admin/upload-qr', {
+        method: 'POST',
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('adminQrImage').src = data.path;
+          document.getElementById('adminQrImage').style.display = 'block';
+          document.getElementById('qrUploadPlaceholder').style.display = 'none';
+          showToast('✅ QR Code uploaded!', 'success');
+          addLog('📱 QR Code uploaded');
+        }
+      })
+      .catch(() => showToast('Upload failed!', 'error'));
+    }
+
+    // ==================== SETTINGS ====================
+    function savePrizes(callback) {
+      const prizes = {
+        earlyFive: parseInt(document.getElementById('prizeEarlyFive').value) || 0,
+        topLine: parseInt(document.getElementById('prizeTopLine').value) || 0,
+        middleLine: parseInt(document.getElementById('prizeMiddleLine').value) || 0,
+        bottomLine: parseInt(document.getElementById('prizeBottomLine').value) || 0,
+        fullHouse: parseInt(document.getElementById('prizeFullHouse').value) || 0,
+        secondFullHouse: parseInt(document.getElementById('prizeSecondFullHouse').value) || 0
+      };
+
+      fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prizes })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast('✅ Prizes saved!', 'success');
+          if (callback) callback();
+        }
+      });
+    }
+
+    function saveSettings() {
+      const settings = {
+        ticketPrice: parseInt(document.getElementById('settingTicketPrice').value) || 50,
+        maxTickets: parseInt(document.getElementById('settingMaxTickets').value) || 6
+      };
+
+      const newPassword = document.getElementById('settingAdminPassword').value;
+      if (newPassword) settings.adminPassword = newPassword;
+
+      fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast('✅ Settings saved!', 'success');
+          addLog('⚙️ Settings updated');
+        }
+      });
+    }
+
+    // ==================== STATS ====================
+    function updateStats(state) {
+      if (!state) return;
+      const players = state.players || [];
+      const approvedPlayers = players.filter(p => p.approved);
+      const totalTickets = players.reduce((sum, p) => sum + p.ticketCount, 0);
+      const totalRevenue = approvedPlayers.reduce((sum, p) => sum + p.totalPaid, 0);
+
+      document.getElementById('statPlayers').textContent = players.length;
+      document.getElementById('statTickets').textContent = totalTickets;
+      document.getElementById('statRevenue').textContent = '₹' + totalRevenue;
+    }
+
+    // ==================== APPROVALS ====================
+    function renderApprovals(approvals) {
+      const container = document.getElementById('approvalsList');
+      const badge = document.getElementById('pendingBadge');
+      badge.textContent = approvals.length;
+
+      if (approvals.length === 0) {
+        container.innerHTML = '<p class="empty-text">No pending approvals</p>';
+        return;
+      }
+
+      container.innerHTML = approvals.map(a => `
+        <div class="approval-item">
+          <div class="approval-info">
+            <span class="approval-name">${a.name}</span>
+            <span class="approval-details">${a.ticketCount} ticket(s) • ₹${a.totalAmount}</span>
+          </div>
+          <div class="approval-actions">
+            <button class="btn-approve" onclick="approvePlayer('${a.playerId}')">✅ Approve</button>
+            <button class="btn-reject" onclick="rejectPlayer('${a.playerId}')">❌ Reject</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function approvePlayer(playerId) {
+      socket.emit('approvePlayer', { playerId });
+      addLog(`✅ Player approved: ${playerId}`);
+    }
+
+    function rejectPlayer(playerId) {
+      if (confirm('Reject this player?')) {
+        socket.emit('rejectPlayer', { playerId });
+        addLog(`❌ Player rejected: ${playerId}`);
+      }
+    }
+
+    // ==================== PLAYERS LIST ====================
+    function renderPlayers(players) {
+      const container = document.getElementById('playersList');
+
+      if (players.length === 0) {
+        container.innerHTML = '<p class="empty-text">No players yet</p>';
+        return;
+      }
+
+      container.innerHTML = players.map(p => `
+        <div class="player-item ${p.approved ? 'approved' : 'pending'}">
+          <div class="player-avatar">${p.name.charAt(0).toUpperCase()}</div>
+          <div class="player-info">
+            <span class="player-name">${p.name}</span>
+            <span class="player-details">${p.ticketCount} tickets • ${p.approved ? '✅ Approved' : '⏳ Pending'}</span>
+          </div>
+          <div class="player-amount">${p.approved ? '₹' + p.totalPaid : '—'}</div>
+        </div>
+      `).join('');
+
+      updateStats({ players });
+    }
+
+    // ==================== ACTIVITY LOG ====================
+    function addLog(message) {
+      const container = document.getElementById('activityLog');
+      const emptyText = container.querySelector('.empty-text');
+      if (emptyText) emptyText.remove();
+
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML = `<span class="log-time">${time}</span> <span class="log-msg">${message}</span>`;
+      container.insertBefore(div, container.firstChild);
+
+      // Keep only last 50 entries
+      while (container.children.length > 50) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    // ==================== SOCKET EVENTS ====================
+    socket.on('connect', () => {
+      addLog('🔗 Connected to server');
+    });
+
+    socket.on('pendingApprovalsUpdated', (approvals) => {
+      renderApprovals(approvals);
+    });
+
+    socket.on('playerListUpdated', (players) => {
+      renderPlayers(players);
+    });
+
+    socket.on('newPlayerJoined', (data) => {
+      addLog(`👋 ${data.name} joined (${data.ticketCount} tickets, ₹${data.totalAmount})`);
+      socket.emit('getPendingApprovals');
+      socket.emit('getPlayerList');
+    });
+
+    socket.on('gameStarted', () => {
+      isGameStarted = true;
+      updateGameStatus();
+      addLog('🎮 Game started!');
+    });
+
+    socket.on('numberCalled', (data) => {
+      calledNumbers = data.calledNumbers;
+      document.getElementById('adminCurrentNumber').textContent = data.number;
+
+      const cell = document.getElementById(`admin-num-${data.number}`);
+      if (cell) {
+        cell.classList.add('called', 'just-called');
+        setTimeout(() => cell.classList.remove('just-called'), 2000);
+      }
+
+      updateAdminNumberBoard();
+      addLog(`🔢 Number called: ${data.number} (${data.remaining} remaining)`);
+
+      // Speak the number on admin side too
+      speakNumber(data.number);
+    });
+
+    socket.on('prizeClaimed', (data) => {
+      addLog(`🏆 ${data.playerName} won ${data.prizeType} (₹${data.amount})`);
+
+      const statusId = 'status' + data.prizeType.charAt(0).toUpperCase() + data.prizeType.slice(1);
+      const status = document.getElementById(statusId);
+      if (status) {
+        status.textContent = '✅ ' + data.playerName;
+        status.className = 'prize-status won';
+      }
+    });
+
+    socket.on('bogusClaim', (data) => {
+      addLog(`⚠️ Bogus claim by ${data.playerName}: ${data.prizeType}`);
+      showToast(`⚠️ Invalid claim by ${data.playerName}!`, 'warning');
+    });
+
+    socket.on('gameComplete', (data) => {
+      isGameStarted = false;
+      updateGameStatus();
+      addLog('🏁 All numbers called!');
+      showToast('All 90 numbers have been called!', 'info');
+    });
+
+    socket.on('gameEnded', () => {
+      isGameStarted = false;
+      isAutoCalling = false;
+      updateGameStatus();
+      addLog('🏁 Game ended');
+    });
+
+    socket.on('gameReset', () => {
+      isGameStarted = false;
+      isAutoCalling = false;
+      calledNumbers = [];
+      updateGameStatus();
+      renderAdminNumberBoard();
+      document.getElementById('adminCurrentNumber').textContent = '--';
+      document.getElementById('approvalsList').innerHTML = '<p class="empty-text">No pending approvals</p>';
+      document.getElementById('playersList').innerHTML = '<p class="empty-text">No players yet</p>';
+      document.getElementById('statPlayers').textContent = '0';
+      document.getElementById('statTickets').textContent = '0';
+      document.getElementById('statRevenue').textContent = '₹0';
+      document.getElementById('statCalled').textContent = '0/90';
+      addLog('🔄 Game reset');
+    });
+
+    socket.on('autoCallStarted', () => {
+      isAutoCalling = true;
+      document.getElementById('btnAutoStart').disabled = true;
+      document.getElementById('btnAutoStop').disabled = false;
+    });
+
+    socket.on('autoCallStopped', () => {
+      isAutoCalling = false;
+      document.getElementById('btnAutoStart').disabled = false;
+      document.getElementById('btnAutoStop').disabled = true;
+    });
+
+    socket.on('playerDisconnected', (data) => {
+      addLog(`👋 ${data.name} disconnected`);
+    });
+
+    // ==================== SPEECH ====================
+    function speakNumber(number) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(`Number ${number}`);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.lang = 'en-IN';
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // ==================== TOAST ====================
+    function showToast(msg, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Auto login check
+    if (sessionStorage.getItem('adminToken')) {
+      document.getElementById('adminLogin').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+      initAdmin();
+    }
+  </script>
+</body>
+</html>

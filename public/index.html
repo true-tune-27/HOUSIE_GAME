@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f0b1e">
+  <title>Housie Game Online - Play Tambola with Friends!</title>
+  <meta name="description" content="Play Housie (Tambola) online with friends. Real-time multiplayer game with voice announcements and exciting prizes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="landing-page">
+  <!-- Animated Background -->
+  <div class="bg-animation">
+    <div class="floating-ball" style="--delay: 0s; --x: 10%; --y: 20%;">7</div>
+    <div class="floating-ball" style="--delay: 1s; --x: 80%; --y: 15%;">42</div>
+    <div class="floating-ball" style="--delay: 2s; --x: 25%; --y: 70%;">88</div>
+    <div class="floating-ball" style="--delay: 3s; --x: 65%; --y: 60%;">23</div>
+    <div class="floating-ball" style="--delay: 4s; --x: 90%; --y: 80%;">56</div>
+    <div class="floating-ball" style="--delay: 5s; --x: 40%; --y: 40%;">11</div>
+    <div class="floating-ball" style="--delay: 1.5s; --x: 55%; --y: 85%;">69</div>
+    <div class="floating-ball" style="--delay: 3.5s; --x: 15%; --y: 50%;">34</div>
+  </div>
+
+  <!-- Hero Section -->
+  <div class="hero-container">
+    <div class="logo-section">
+      <div class="logo-icon">
+        <div class="ball-container">
+          <div class="main-ball">🎱</div>
+        </div>
+      </div>
+      <h1 class="hero-title">
+        <span class="title-gradient">HOUSIE</span>
+        <span class="title-sub">ONLINE</span>
+      </h1>
+      <p class="hero-tagline">The Ultimate Tambola Experience • Play with Friends Anywhere</p>
+    </div>
+
+    <!-- Join Form -->
+    <div class="join-card glass-card">
+      <div class="card-glow"></div>
+      <h2 class="card-title">🎮 Join the Game</h2>
+
+      <div class="form-group">
+        <label class="form-label" for="playerName">Your Name</label>
+        <div class="input-wrapper">
+          <span class="input-icon">👤</span>
+          <input type="text" id="playerName" class="form-input" placeholder="Enter your name" maxlength="20" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="ticketCount">Number of Tickets</label>
+        <div class="ticket-selector">
+          <button class="ticket-btn" onclick="changeTicketCount(-1)">−</button>
+          <div class="ticket-count-display">
+            <span id="ticketCountDisplay">1</span>
+            <span class="ticket-label">ticket(s)</span>
+          </div>
+          <button class="ticket-btn" onclick="changeTicketCount(1)">+</button>
+        </div>
+        <p class="form-hint">Max <span id="maxTicketsDisplay">6</span> tickets per player • ₹<span id="ticketPriceDisplay">50</span> each</p>
+      </div>
+
+      <div class="total-section">
+        <span class="total-label">Total Amount</span>
+        <span class="total-amount" id="totalAmount">₹50</span>
+      </div>
+
+      <button class="btn-primary btn-join" onclick="joinGame()">
+        <span class="btn-text">Join Game</span>
+        <span class="btn-icon">🚀</span>
+      </button>
+
+      <div class="divider">
+        <span>OR</span>
+      </div>
+
+      <a href="/admin" class="btn-secondary btn-admin">
+        <span class="btn-icon">🔧</span>
+        <span class="btn-text">Admin Panel</span>
+      </a>
+    </div>
+
+    <!-- Prize Pool -->
+    <div class="prize-section glass-card">
+      <h3 class="prize-title">🏆 Prize Pool</h3>
+      <div class="prize-grid" id="prizeGrid">
+        <div class="prize-item">
+          <span class="prize-icon">⚡</span>
+          <span class="prize-name">Early Five</span>
+          <span class="prize-amount" id="prizeEarlyFive">₹0</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-icon">📏</span>
+          <span class="prize-name">Top Line</span>
+          <span class="prize-amount" id="prizeTopLine">₹0</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-icon">📐</span>
+          <span class="prize-name">Middle Line</span>
+          <span class="prize-amount" id="prizeMiddleLine">₹0</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-icon">📏</span>
+          <span class="prize-name">Bottom Line</span>
+          <span class="prize-amount" id="prizeBottomLine">₹0</span>
+        </div>
+        <div class="prize-item featured">
+          <span class="prize-icon">🏠</span>
+          <span class="prize-name">Full House</span>
+          <span class="prize-amount" id="prizeFullHouse">₹0</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-icon">🏠</span>
+          <span class="prize-name">2nd Full House</span>
+          <span class="prize-amount" id="prizeSecondFullHouse">₹0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- How to Play -->
+    <div class="how-to-play glass-card">
+      <h3 class="section-title">📖 How to Play</h3>
+      <div class="steps-grid">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <h4>Join & Pay</h4>
+          <p>Enter your name, choose tickets, and pay via PhonePe QR</p>
+        </div>
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <h4>Wait for Approval</h4>
+          <p>Admin verifies your payment and approves your entry</p>
+        </div>
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <h4>Play!</h4>
+          <p>Numbers are called out — mark them on your tickets</p>
+        </div>
+        <div class="step-item">
+          <div class="step-number">4</div>
+          <h4>Claim & Win</h4>
+          <p>Complete a line or full house? Claim your prize!</p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>Made with ❤️ for Housie Lovers</p>
+    </footer>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let ticketCount = 1;
+    let ticketPrice = 50;
+    let maxTickets = 6;
+
+    // Fetch initial state
+    fetch('/api/game/state')
+      .then(r => r.json())
+      .then(state => {
+        ticketPrice = state.ticketPrice;
+        maxTickets = state.maxTicketsPerPlayer;
+        document.getElementById('ticketPriceDisplay').textContent = ticketPrice;
+        document.getElementById('maxTicketsDisplay').textContent = maxTickets;
+        updateTotal();
+        updatePrizes(state.prizes);
+      });
+
+    function changeTicketCount(delta) {
+      ticketCount = Math.max(1, Math.min(maxTickets, ticketCount + delta));
+      document.getElementById('ticketCountDisplay').textContent = ticketCount;
+      updateTotal();
+    }
+
+    function updateTotal() {
+      const total = ticketCount * ticketPrice;
+      document.getElementById('totalAmount').textContent = '₹' + total;
+    }
+
+    function updatePrizes(prizes) {
+      if (!prizes) return;
+      document.getElementById('prizeEarlyFive').textContent = '₹' + (prizes.earlyFive?.amount || 0);
+      document.getElementById('prizeTopLine').textContent = '₹' + (prizes.topLine?.amount || 0);
+      document.getElementById('prizeMiddleLine').textContent = '₹' + (prizes.middleLine?.amount || 0);
+      document.getElementById('prizeBottomLine').textContent = '₹' + (prizes.bottomLine?.amount || 0);
+      document.getElementById('prizeFullHouse').textContent = '₹' + (prizes.fullHouse?.amount || 0);
+      document.getElementById('prizeSecondFullHouse').textContent = '₹' + (prizes.secondFullHouse?.amount || 0);
+    }
+
+    function joinGame() {
+      const name = document.getElementById('playerName').value.trim();
+      if (!name) {
+        showToast('Please enter your name!', 'error');
+        document.getElementById('playerName').focus();
+        return;
+      }
+
+      // Store in session
+      sessionStorage.setItem('playerName', name);
+      sessionStorage.setItem('ticketCount', ticketCount);
+
+      // Redirect to game page
+      window.location.href = `/game?name=${encodeURIComponent(name)}&tickets=${ticketCount}`;
+    }
+
+    function showToast(msg, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Enter key to join
+    document.getElementById('playerName').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') joinGame();
+    });
+
+    // Listen for settings updates
+    socket.on('settingsUpdated', (data) => {
+      if (data.ticketPrice) {
+        ticketPrice = data.ticketPrice;
+        document.getElementById('ticketPriceDisplay').textContent = ticketPrice;
+        updateTotal();
+      }
+      if (data.prizes) updatePrizes(data.prizes);
+    });
+  </script>
+</body>
+</html>
