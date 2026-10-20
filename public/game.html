@@ -22,6 +22,7 @@
     </div>
     <div class="status-center">
       <span class="game-badge" id="gameBadge">WAITING</span>
+      <span class="room-badge-small" id="roomBadgeSmall" style="background: rgba(255,217,61,0.15); color: #ffd93d; padding: 2px 8px; border-radius: 6px; font-size: 0.7em; font-weight: 700; letter-spacing: 2px; margin-left: 6px;"></span>
     </div>
     <div class="status-right">
       <span id="playerNameDisplay"></span>
@@ -200,7 +201,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     // ==================== GAME STATE ====================
-    const socket = io();
+    let socket = null; // Don't connect until we have a room key
     let playerId = null;
     let playerName = '';
     let playerTickets = [];
@@ -213,23 +214,30 @@
     let chatOpen = true;
     let unreadChat = 0;
     let boardVisible = true;
+    let roomKey = null;
 
     // Get URL params
     const urlParams = new URLSearchParams(window.location.search);
     playerName = urlParams.get('name') || sessionStorage.getItem('playerName') || '';
     const ticketCount = parseInt(urlParams.get('tickets') || sessionStorage.getItem('ticketCount') || '1');
+    roomKey = (urlParams.get('room') || sessionStorage.getItem('roomKey') || '').toUpperCase();
 
-    if (!playerName) {
+    if (!playerName || !roomKey) {
       window.location.href = '/';
     }
 
     document.getElementById('playerNameDisplay').textContent = playerName;
+    document.getElementById('roomBadgeSmall').textContent = roomKey;
 
     // ==================== INITIALIZATION ====================
     function init() {
       renderNumberBoard();
-      // Join the game
-      socket.emit('joinGame', { name: playerName, ticketCount });
+
+      // Connect socket only now, with room key
+      socket = io();
+
+      setupSocketEvents();
+      // joinRoom is emitted inside the 'connect' handler
     }
 
     // ==================== NUMBER BOARD ====================
@@ -393,7 +401,7 @@
 
     function claimPrize(prizeType, ticketId) {
       if (!isGameStarted || !isApproved) return;
-      socket.emit('claimPrize', { playerId, ticketId, prizeType });
+      socket.emit('claimPrize', { playerId, ticketId, prizeType, roomKey });
     }
 
     // ==================== SPEECH ====================
@@ -472,7 +480,7 @@
       const input = document.getElementById('chatInput');
       const msg = input.value.trim();
       if (!msg) return;
-      socket.emit('chatMessage', { name: playerName, message: msg });
+      socket.emit('chatMessage', { name: playerName, message: msg, roomKey });
       input.value = '';
     }
 
@@ -570,228 +578,246 @@
     }
 
     // ==================== SOCKET EVENTS ====================
+    function setupSocketEvents() {
 
-    // Connected
-    socket.on('connect', () => {
-      document.getElementById('connectionDot').className = 'status-dot connected';
-      document.getElementById('connectionStatus').textContent = 'Connected';
+      // Connected
+      socket.on('connect', () => {
+        document.getElementById('connectionDot').className = 'status-dot connected';
+        document.getElementById('connectionStatus').textContent = 'Connected';
 
-      // Check for reconnection
-      const savedPlayerId = sessionStorage.getItem('playerId');
-      if (savedPlayerId && !playerId) {
-        socket.emit('reconnect', { playerId: savedPlayerId });
-      }
-    });
-
-    socket.on('disconnect', () => {
-      document.getElementById('connectionDot').className = 'status-dot disconnected';
-      document.getElementById('connectionStatus').textContent = 'Disconnected';
-    });
-
-    // Joined game
-    socket.on('joinedGame', (data) => {
-      playerId = data.playerId;
-      playerTickets = data.tickets;
-      prizes = data.prizes;
-      calledNumbers = data.calledNumbers || [];
-      currentNumber = data.currentNumber;
-      isGameStarted = data.isGameStarted;
-
-      sessionStorage.setItem('playerId', playerId);
-
-      // Show payment overlay if not approved
-      if (!data.approved) {
-        document.getElementById('paymentOverlay').style.display = 'flex';
-        document.getElementById('payTicketCount').textContent = data.tickets.length;
-        document.getElementById('payTicketPrice').textContent = '₹' + data.ticketPrice;
-        document.getElementById('payTotal').textContent = '₹' + data.totalAmount;
-
-        if (data.qrCodePath) {
-          document.getElementById('qrImage').src = data.qrCodePath;
-          document.getElementById('qrImage').style.display = 'block';
-          document.getElementById('qrPlaceholder').style.display = 'none';
+        // Check for reconnection vs fresh join
+        const savedPlayerId = sessionStorage.getItem('playerId');
+        if (savedPlayerId && !playerId) {
+          // Try reconnecting to existing session
+          socket.emit('reconnect', { playerId: savedPlayerId, roomKey });
+        } else {
+          // Fresh join — enter the room first
+          socket.emit('joinRoom', { roomKey, role: 'player' });
         }
-      } else {
+      });
+
+      socket.on('disconnect', () => {
+        document.getElementById('connectionDot').className = 'status-dot disconnected';
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+      });
+
+      // Room joined successfully — now join the game
+      socket.on('roomJoined', (data) => {
+        roomKey = data.roomKey;
+        socket.emit('joinGame', { name: playerName, ticketCount, roomKey });
+      });
+
+      // Room error
+      socket.on('roomError', (data) => {
+        showToast(data.message, 'error');
+        setTimeout(() => window.location.href = '/', 2000);
+      });
+
+      // Joined game
+      socket.on('joinedGame', (data) => {
+        playerId = data.playerId;
+        playerTickets = data.tickets;
+        prizes = data.prizes;
+        calledNumbers = data.calledNumbers || [];
+        currentNumber = data.currentNumber;
+        isGameStarted = data.isGameStarted;
+
+        sessionStorage.setItem('playerId', playerId);
+
+        // Show payment overlay if not approved
+        if (!data.approved) {
+          document.getElementById('paymentOverlay').style.display = 'flex';
+          document.getElementById('payTicketCount').textContent = data.tickets.length;
+          document.getElementById('payTicketPrice').textContent = '₹' + data.ticketPrice;
+          document.getElementById('payTotal').textContent = '₹' + data.totalAmount;
+
+          if (data.qrCodePath) {
+            document.getElementById('qrImage').src = data.qrCodePath;
+            document.getElementById('qrImage').style.display = 'block';
+            document.getElementById('qrPlaceholder').style.display = 'none';
+          }
+        } else {
+          isApproved = true;
+          document.getElementById('paymentOverlay').style.display = 'none';
+          document.getElementById('gameContainer').style.display = 'block';
+        }
+
+        renderTickets();
+        renderTicketDots();
+        renderPrizes();
+        updateNumberBoard();
+
+        if (isGameStarted) {
+          document.getElementById('gameBadge').textContent = 'LIVE';
+          document.getElementById('gameBadge').className = 'game-badge live';
+        }
+      });
+
+      // Payment approved
+      socket.on('paymentApproved', () => {
         isApproved = true;
         document.getElementById('paymentOverlay').style.display = 'none';
         document.getElementById('gameContainer').style.display = 'block';
-      }
+        showToast('✅ Payment approved! You\'re in the game!', 'success');
+        renderTickets();
+        renderTicketDots();
+        renderPrizes();
+        updateNumberBoard();
+      });
 
-      renderTickets();
-      renderTicketDots();
-      renderPrizes();
-      updateNumberBoard();
+      // Payment rejected
+      socket.on('paymentRejected', () => {
+        document.getElementById('paymentOverlay').innerHTML = `
+          <div class="overlay-card glass-card">
+            <div class="overlay-icon">❌</div>
+            <h2>Payment Rejected</h2>
+            <p>Your payment was not verified. Please try again.</p>
+            <a href="/" class="btn-primary">Go Back</a>
+          </div>
+        `;
+      });
 
-      if (isGameStarted) {
+      // Reconnected
+      socket.on('reconnected', (data) => {
+        playerId = data.playerId;
+        playerTickets = data.tickets;
+        isApproved = data.approved;
+        calledNumbers = data.calledNumbers || [];
+        currentNumber = data.currentNumber;
+        prizes = data.prizes;
+        isGameStarted = data.isGameStarted;
+
+        if (isApproved) {
+          document.getElementById('paymentOverlay').style.display = 'none';
+          document.getElementById('gameContainer').style.display = 'block';
+        }
+
+        renderTickets();
+        renderTicketDots();
+        renderPrizes();
+        updateNumberBoard();
+        showToast('🔄 Reconnected!', 'info');
+      });
+
+      socket.on('reconnectFailed', () => {
+        // Reconnect failed — do a fresh room join instead
+        socket.emit('joinRoom', { roomKey, role: 'player' });
+      });
+
+      // Game started
+      socket.on('gameStarted', (data) => {
+        isGameStarted = true;
+        prizes = data.prizes;
         document.getElementById('gameBadge').textContent = 'LIVE';
         document.getElementById('gameBadge').className = 'game-badge live';
-      }
-    });
+        renderPrizes();
+        showToast('🎮 Game has started! Good luck!', 'success');
+        addChatMessage('', '🎮 Game has started! Good luck everyone!', true);
 
-    // Payment approved
-    socket.on('paymentApproved', () => {
-      isApproved = true;
-      document.getElementById('paymentOverlay').style.display = 'none';
-      document.getElementById('gameContainer').style.display = 'block';
-      showToast('✅ Payment approved! You\'re in the game!', 'success');
-      renderTickets();
-      renderTicketDots();
-      renderPrizes();
-      updateNumberBoard();
-    });
+        // Speak announcement
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance('Game has started! Good luck everyone!');
+          utterance.rate = 0.9;
+          utterance.lang = 'en-IN';
+          window.speechSynthesis.speak(utterance);
+        }
+      });
 
-    // Payment rejected
-    socket.on('paymentRejected', () => {
-      document.getElementById('paymentOverlay').innerHTML = `
-        <div class="overlay-card glass-card">
-          <div class="overlay-icon">❌</div>
-          <h2>Payment Rejected</h2>
-          <p>Your payment was not verified. Please try again.</p>
-          <a href="/" class="btn-primary">Go Back</a>
-        </div>
-      `;
-    });
+      // Number called
+      socket.on('numberCalled', (data) => {
+        currentNumber = data.number;
+        calledNumbers = data.calledNumbers;
 
-    // Reconnected
-    socket.on('reconnected', (data) => {
-      playerId = data.playerId;
-      playerTickets = data.tickets;
-      isApproved = data.approved;
-      calledNumbers = data.calledNumbers || [];
-      currentNumber = data.currentNumber;
-      prizes = data.prizes;
-      isGameStarted = data.isGameStarted;
+        // Update current number display with animation
+        const ballEl = document.getElementById('currentNumberBall');
+        const numText = document.getElementById('currentNumberText');
 
-      if (isApproved) {
-        document.getElementById('paymentOverlay').style.display = 'none';
-        document.getElementById('gameContainer').style.display = 'block';
-      }
+        ballEl.classList.add('pop-in');
+        setTimeout(() => ballEl.classList.remove('pop-in'), 600);
 
-      renderTickets();
-      renderTicketDots();
-      renderPrizes();
-      updateNumberBoard();
-      showToast('🔄 Reconnected!', 'info');
-    });
+        numText.textContent = data.number;
 
-    socket.on('reconnectFailed', () => {
-      // Re-join
-      socket.emit('joinGame', { name: playerName, ticketCount });
-    });
+        updateNumberBoard();
+        updateTickets();
 
-    // Game started
-    socket.on('gameStarted', (data) => {
-      isGameStarted = true;
-      prizes = data.prizes;
-      document.getElementById('gameBadge').textContent = 'LIVE';
-      document.getElementById('gameBadge').className = 'game-badge live';
-      renderPrizes();
-      showToast('🎮 Game has started! Good luck!', 'success');
-      addChatMessage('', '🎮 Game has started! Good luck everyone!', true);
+        // Speak the number
+        speakNumber(data.number);
+      });
 
-      // Speak announcement
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance('Game has started! Good luck everyone!');
-        utterance.rate = 0.9;
-        utterance.lang = 'en-IN';
-        window.speechSynthesis.speak(utterance);
-      }
-    });
+      // Game complete
+      socket.on('gameComplete', (data) => {
+        isGameStarted = false;
+        document.getElementById('gameBadge').textContent = 'COMPLETED';
+        document.getElementById('gameBadge').className = 'game-badge completed';
+        showToast('🏁 ' + data.message, 'info');
+        addChatMessage('', '🏁 ' + data.message, true);
+      });
 
-    // Number called
-    socket.on('numberCalled', (data) => {
-      currentNumber = data.number;
-      calledNumbers = data.calledNumbers;
+      // Game ended
+      socket.on('gameEnded', (data) => {
+        isGameStarted = false;
+        prizes = data.prizes;
+        document.getElementById('gameBadge').textContent = 'ENDED';
+        document.getElementById('gameBadge').className = 'game-badge ended';
+        renderPrizes();
+        showToast('🏁 Game has ended!', 'info');
+      });
 
-      // Update current number display with animation
-      const ballEl = document.getElementById('currentNumberBall');
-      const numText = document.getElementById('currentNumberText');
+      // Game reset
+      socket.on('gameReset', () => {
+        sessionStorage.removeItem('playerId');
+        window.location.href = '/';
+      });
 
-      ballEl.classList.add('pop-in');
-      setTimeout(() => ballEl.classList.remove('pop-in'), 600);
+      // Claim result
+      socket.on('claimResult', (data) => {
+        if (data.success) {
+          showCelebration('🎉 You Won!', data.prizeType.replace(/([A-Z])/g, ' $1').trim(), data.amount);
+          showToast(data.message, 'success');
+        } else {
+          showToast(data.message, 'error');
+        }
+      });
 
-      numText.textContent = data.number;
-
-      updateNumberBoard();
-      updateTickets();
-
-      // Speak the number
-      speakNumber(data.number);
-    });
-
-    // Game complete
-    socket.on('gameComplete', (data) => {
-      isGameStarted = false;
-      document.getElementById('gameBadge').textContent = 'COMPLETED';
-      document.getElementById('gameBadge').className = 'game-badge completed';
-      showToast('🏁 ' + data.message, 'info');
-      addChatMessage('', '🏁 ' + data.message, true);
-    });
-
-    // Game ended
-    socket.on('gameEnded', (data) => {
-      isGameStarted = false;
-      prizes = data.prizes;
-      document.getElementById('gameBadge').textContent = 'ENDED';
-      document.getElementById('gameBadge').className = 'game-badge ended';
-      renderPrizes();
-      showToast('🏁 Game has ended!', 'info');
-    });
-
-    // Game reset
-    socket.on('gameReset', () => {
-      sessionStorage.removeItem('playerId');
-      window.location.href = '/';
-    });
-
-    // Claim result
-    socket.on('claimResult', (data) => {
-      if (data.success) {
-        showCelebration('🎉 You Won!', data.prizeType.replace(/([A-Z])/g, ' $1').trim(), data.amount);
-        showToast(data.message, 'success');
-      } else {
-        showToast(data.message, 'error');
-      }
-    });
-
-    // Prize claimed by someone
-    socket.on('prizeClaimed', (data) => {
-      prizes = data.prizes;
-      renderPrizes();
-      showPrizeToast(`🏆 ${data.playerName} won ${data.prizeType.replace(/([A-Z])/g, ' $1').trim()}! (₹${data.amount})`);
-      addChatMessage('', `🏆 ${data.playerName} won ${data.prizeType.replace(/([A-Z])/g, ' $1').trim()}!`, true);
-    });
-
-    // Chat
-    socket.on('chatMessage', (data) => {
-      addChatMessage(data.name, data.message);
-    });
-
-    // Settings updated
-    socket.on('settingsUpdated', (data) => {
-      if (data.prizes) {
+      // Prize claimed by someone
+      socket.on('prizeClaimed', (data) => {
         prizes = data.prizes;
         renderPrizes();
-      }
-    });
+        showPrizeToast(`🏆 ${data.playerName} won ${data.prizeType.replace(/([A-Z])/g, ' $1').trim()}! (₹${data.amount})`);
+        addChatMessage('', `🏆 ${data.playerName} won ${data.prizeType.replace(/([A-Z])/g, ' $1').trim()}!`, true);
+      });
 
-    // Player events
-    socket.on('newPlayerJoined', (data) => {
-      addChatMessage('', `👋 ${data.name} joined the game!`, true);
-    });
+      // Chat
+      socket.on('chatMessage', (data) => {
+        addChatMessage(data.name, data.message);
+      });
 
-    socket.on('playerDisconnected', (data) => {
-      addChatMessage('', `👋 ${data.name} disconnected`, true);
-    });
+      // Settings updated
+      socket.on('settingsUpdated', (data) => {
+        if (data.prizes) {
+          prizes = data.prizes;
+          renderPrizes();
+        }
+      });
 
-    // Auto call
-    socket.on('autoCallStarted', () => {
-      showToast('🔄 Auto-call started!', 'info');
-    });
+      // Player events
+      socket.on('newPlayerJoined', (data) => {
+        addChatMessage('', `👋 ${data.name} joined the game!`, true);
+      });
 
-    socket.on('autoCallStopped', () => {
-      showToast('⏸️ Auto-call paused', 'info');
-    });
+      socket.on('playerDisconnected', (data) => {
+        addChatMessage('', `👋 ${data.name} disconnected`, true);
+      });
+
+      // Auto call
+      socket.on('autoCallStarted', () => {
+        showToast('🔄 Auto-call started!', 'info');
+      });
+
+      socket.on('autoCallStopped', () => {
+        showToast('⏸️ Auto-call paused', 'info');
+      });
+    }
 
     // ==================== MOBILE HELPERS ====================
     function scrollToSection(sectionId) {

@@ -15,20 +15,52 @@
 </head>
 <body class="admin-page">
 
-  <!-- Admin Login -->
-  <div class="admin-login" id="adminLogin">
-    <div class="login-card glass-card">
-      <div class="login-icon">🔐</div>
-      <h2>Admin Login</h2>
-      <p>Enter admin password to access controls</p>
-      <div class="form-group">
-        <div class="input-wrapper">
-          <span class="input-icon">🔑</span>
-          <input type="password" id="adminPassword" class="form-input" placeholder="Admin Password" value="admin123">
+  <!-- Step 1: Create or Join Room -->
+  <div class="admin-login" id="adminRoomSetup">
+    <div class="login-card glass-card" style="max-width: 480px;">
+      <div class="login-icon">🏠</div>
+      <h2>Admin Panel</h2>
+      <p>Create a new game room or manage an existing one</p>
+
+      <!-- Create Room -->
+      <div style="margin-top: 24px;">
+        <h3 style="color: #ffd93d; margin-bottom: 12px; font-size: 1em;">🆕 Create New Room</h3>
+        <div class="form-group">
+          <div class="input-wrapper">
+            <span class="input-icon">🔑</span>
+            <input type="password" id="createRoomPassword" class="form-input" placeholder="Set admin password" value="admin123">
+          </div>
         </div>
+        <button class="btn-primary" onclick="createRoom()" style="width: 100%;">
+          🏠 Create Game Room
+        </button>
       </div>
-      <button class="btn-primary" onclick="adminLogin()">Login</button>
-      <p class="form-hint" style="margin-top: 12px;">Default password: admin123</p>
+
+      <div class="divider" style="margin: 24px 0;">
+        <span>OR</span>
+      </div>
+
+      <!-- Join Existing Room -->
+      <div>
+        <h3 style="color: #4d96ff; margin-bottom: 12px; font-size: 1em;">🔑 Manage Existing Room</h3>
+        <div class="form-group">
+          <div class="input-wrapper">
+            <span class="input-icon">🏠</span>
+            <input type="text" id="existingRoomKey" class="form-input" placeholder="Room Key (e.g. ABC123)" maxlength="6" autocomplete="off" style="text-transform: uppercase; letter-spacing: 3px; font-weight: 700;">
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="input-wrapper">
+            <span class="input-icon">🔑</span>
+            <input type="password" id="existingRoomPassword" class="form-input" placeholder="Admin Password" value="admin123">
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="joinExistingRoom()" style="width: 100%;">
+          🔐 Login to Room
+        </button>
+      </div>
+
+      <p class="form-hint" style="margin-top: 16px;">Default password: admin123</p>
     </div>
   </div>
 
@@ -50,6 +82,14 @@
       <div class="topbar-right">
         <button class="topbar-btn" onclick="window.open('/', '_blank')">👁️ Player View</button>
       </div>
+    </div>
+
+    <!-- Room Key Display -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 16px; margin: 8px 16px; background: linear-gradient(135deg, rgba(255,217,61,0.1), rgba(77,150,255,0.1)); border: 1px solid rgba(255,217,61,0.25); border-radius: 12px;">
+      <span style="color: #aaa; font-size: 0.9em;">ROOM KEY:</span>
+      <span id="roomKeyDisplay" style="font-family: monospace; font-weight: 900; font-size: 1.6em; letter-spacing: 5px; color: #ffd93d;"></span>
+      <button onclick="copyRoomKey()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 0.85em; transition: all 0.2s;" id="copyKeyBtn">📋 Copy</button>
+      <button onclick="shareRoom()" style="background: rgba(107,203,119,0.15); border: 1px solid rgba(107,203,119,0.3); color: #6bcb77; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 0.85em; transition: all 0.2s;">📤 Share Link</button>
     </div>
 
     <!-- Stats Cards -->
@@ -280,15 +320,46 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    let socket = null; // Don't connect until room is ready
     let isGameStarted = false;
     let calledNumbers = [];
     let isAutoCalling = false;
+    let roomKey = null;
 
-    // ==================== AUTH ====================
-    function adminLogin() {
-      const password = document.getElementById('adminPassword').value;
-      fetch('/api/admin/login', {
+    // ==================== ROOM MANAGEMENT ====================
+    function createRoom() {
+      const password = document.getElementById('createRoomPassword').value || 'admin123';
+
+      fetch('/api/room/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword: password })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          roomKey = data.roomKey;
+          sessionStorage.setItem('roomKey', roomKey);
+          sessionStorage.setItem('adminToken', 'admin-' + roomKey);
+          showToast(`✅ Room created! Key: ${roomKey}`, 'success');
+          enterDashboard();
+        } else {
+          showToast('Failed to create room.', 'error');
+        }
+      })
+      .catch(() => showToast('Connection error.', 'error'));
+    }
+
+    function joinExistingRoom() {
+      const key = document.getElementById('existingRoomKey').value.trim().toUpperCase();
+      const password = document.getElementById('existingRoomPassword').value;
+
+      if (!key) {
+        showToast('Enter a room key!', 'error');
+        return;
+      }
+
+      fetch(`/api/admin/${key}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })
@@ -296,42 +367,62 @@
       .then(r => r.json())
       .then(data => {
         if (data.success) {
+          roomKey = key;
+          sessionStorage.setItem('roomKey', roomKey);
           sessionStorage.setItem('adminToken', data.token);
-          document.getElementById('adminLogin').style.display = 'none';
-          document.getElementById('adminDashboard').style.display = 'block';
-          initAdmin();
+          showToast('✅ Logged in!', 'success');
+          enterDashboard();
         } else {
-          showToast('Invalid password!', 'error');
+          showToast(data.error || 'Invalid password!', 'error');
         }
       })
-      .catch(() => showToast('Login failed!', 'error'));
+      .catch(() => showToast('Room not found or connection error.', 'error'));
     }
 
-    document.getElementById('adminPassword').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') adminLogin();
-    });
+    function enterDashboard() {
+      document.getElementById('adminRoomSetup').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+      document.getElementById('roomKeyDisplay').textContent = roomKey;
+
+      // Connect socket — joinRoom is emitted inside the 'connect' handler
+      socket = io();
+      setupSocketEvents();
+
+      initAdmin();
+    }
+
+    function copyRoomKey() {
+      navigator.clipboard.writeText(roomKey).then(() => {
+        const btn = document.getElementById('copyKeyBtn');
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => btn.textContent = '📋 Copy', 2000);
+        showToast('Room key copied!', 'success');
+      });
+    }
+
+    function shareRoom() {
+      const url = `${window.location.origin}/?room=${roomKey}`;
+      if (navigator.share) {
+        navigator.share({
+          title: 'Join Housie Game',
+          text: `Join my Housie game! Room Key: ${roomKey}`,
+          url: url
+        });
+      } else {
+        navigator.clipboard.writeText(url).then(() => {
+          showToast('Share link copied!', 'success');
+        });
+      }
+    }
 
     // ==================== INIT ====================
     function initAdmin() {
       renderAdminNumberBoard();
       loadGameState();
-      socket.emit('getPendingApprovals');
-      socket.emit('getPlayerList');
-
-      // Load existing QR
-      fetch('/api/qr-code')
-        .then(r => r.json())
-        .then(data => {
-          if (data.path) {
-            document.getElementById('adminQrImage').src = data.path;
-            document.getElementById('adminQrImage').style.display = 'block';
-            document.getElementById('qrUploadPlaceholder').style.display = 'none';
-          }
-        });
     }
 
     function loadGameState() {
-      fetch('/api/game/state')
+      fetch(`/api/game/${roomKey}/state`)
         .then(r => r.json())
         .then(state => {
           isGameStarted = state.isGameStarted;
@@ -369,7 +460,8 @@
           if (state.currentNumber) {
             document.getElementById('adminCurrentNumber').textContent = state.currentNumber;
           }
-        });
+        })
+        .catch(() => showToast('Failed to load game state.', 'error'));
     }
 
     // ==================== NUMBER BOARD ====================
@@ -403,7 +495,7 @@
       if (confirm('Start the game? Make sure all players have been approved.')) {
         // Save prizes first
         savePrizes(() => {
-          socket.emit('startGame');
+          socket.emit('startGame', { roomKey });
           addLog('🎮 Game started!');
         });
       }
@@ -411,14 +503,14 @@
 
     function endGame() {
       if (confirm('End the current game?')) {
-        socket.emit('endGame');
+        socket.emit('endGame', { roomKey });
         addLog('🏁 Game ended');
       }
     }
 
     function resetGame() {
       if (confirm('⚠️ RESET everything? This will remove all players and data!')) {
-        socket.emit('resetGame');
+        socket.emit('resetGame', { roomKey });
         calledNumbers = [];
         updateAdminNumberBoard();
         addLog('🔄 Game reset');
@@ -427,12 +519,12 @@
     }
 
     function callNumber() {
-      socket.emit('callNumber');
+      socket.emit('callNumber', { roomKey });
     }
 
     function startAutoCall() {
       const speed = parseInt(document.getElementById('autoCallSpeed').value) * 1000;
-      socket.emit('startAutoCall', { speed });
+      socket.emit('startAutoCall', { speed, roomKey });
       isAutoCalling = true;
       document.getElementById('btnAutoStart').disabled = true;
       document.getElementById('btnAutoStop').disabled = false;
@@ -440,7 +532,7 @@
     }
 
     function stopAutoCall() {
-      socket.emit('stopAutoCall');
+      socket.emit('stopAutoCall', { roomKey });
       isAutoCalling = false;
       document.getElementById('btnAutoStart').disabled = false;
       document.getElementById('btnAutoStop').disabled = true;
@@ -482,7 +574,7 @@
       const formData = new FormData();
       formData.append('qrcode', file);
 
-      fetch('/api/admin/upload-qr', {
+      fetch(`/api/admin/${roomKey}/upload-qr`, {
         method: 'POST',
         body: formData
       })
@@ -510,7 +602,7 @@
         secondFullHouse: parseInt(document.getElementById('prizeSecondFullHouse').value) || 0
       };
 
-      fetch('/api/admin/settings', {
+      fetch(`/api/admin/${roomKey}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prizes })
@@ -533,7 +625,7 @@
       const newPassword = document.getElementById('settingAdminPassword').value;
       if (newPassword) settings.adminPassword = newPassword;
 
-      fetch('/api/admin/settings', {
+      fetch(`/api/admin/${roomKey}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
@@ -586,13 +678,13 @@
     }
 
     function approvePlayer(playerId) {
-      socket.emit('approvePlayer', { playerId });
+      socket.emit('approvePlayer', { playerId, roomKey });
       addLog(`✅ Player approved: ${playerId}`);
     }
 
     function rejectPlayer(playerId) {
       if (confirm('Reject this player?')) {
-        socket.emit('rejectPlayer', { playerId });
+        socket.emit('rejectPlayer', { playerId, roomKey });
         addLog(`❌ Player rejected: ${playerId}`);
       }
     }
@@ -639,108 +731,137 @@
     }
 
     // ==================== SOCKET EVENTS ====================
-    socket.on('connect', () => {
-      addLog('🔗 Connected to server');
-    });
+    function setupSocketEvents() {
+      socket.on('connect', () => {
+        addLog('🔗 Connected to server');
+        // Join/re-join the room on every (re)connect
+        socket.emit('joinRoom', { roomKey, role: 'admin' });
+      });
 
-    socket.on('pendingApprovalsUpdated', (approvals) => {
-      renderApprovals(approvals);
-    });
+      socket.on('roomJoined', () => {
+        addLog(`🏠 Joined room: ${roomKey}`);
+        socket.emit('getPendingApprovals', { roomKey });
+        socket.emit('getPlayerList', { roomKey });
 
-    socket.on('playerListUpdated', (players) => {
-      renderPlayers(players);
-    });
+        // Load existing QR
+        fetch(`/api/${roomKey}/qr-code`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.path) {
+              document.getElementById('adminQrImage').src = data.path;
+              document.getElementById('adminQrImage').style.display = 'block';
+              document.getElementById('qrUploadPlaceholder').style.display = 'none';
+            }
+          });
+      });
 
-    socket.on('newPlayerJoined', (data) => {
-      addLog(`👋 ${data.name} joined (${data.ticketCount} tickets, ₹${data.totalAmount})`);
-      socket.emit('getPendingApprovals');
-      socket.emit('getPlayerList');
-    });
+      socket.on('roomError', (data) => {
+        showToast(data.message, 'error');
+      });
 
-    socket.on('gameStarted', () => {
-      isGameStarted = true;
-      updateGameStatus();
-      addLog('🎮 Game started!');
-    });
+      socket.on('pendingApprovalsUpdated', (approvals) => {
+        renderApprovals(approvals);
+      });
 
-    socket.on('numberCalled', (data) => {
-      calledNumbers = data.calledNumbers;
-      document.getElementById('adminCurrentNumber').textContent = data.number;
+      socket.on('playerListUpdated', (players) => {
+        renderPlayers(players);
+      });
 
-      const cell = document.getElementById(`admin-num-${data.number}`);
-      if (cell) {
-        cell.classList.add('called', 'just-called');
-        setTimeout(() => cell.classList.remove('just-called'), 2000);
-      }
+      socket.on('newPlayerJoined', (data) => {
+        addLog(`👋 ${data.name} joined (${data.ticketCount} tickets, ₹${data.totalAmount})`);
+        socket.emit('getPendingApprovals', { roomKey });
+        socket.emit('getPlayerList', { roomKey });
+      });
 
-      updateAdminNumberBoard();
-      addLog(`🔢 Number called: ${data.number} (${data.remaining} remaining)`);
+      socket.on('gameStarted', () => {
+        isGameStarted = true;
+        updateGameStatus();
+        addLog('🎮 Game started!');
+      });
 
-      // Speak the number on admin side too
-      speakNumber(data.number);
-    });
+      socket.on('numberCalled', (data) => {
+        calledNumbers = data.calledNumbers;
+        document.getElementById('adminCurrentNumber').textContent = data.number;
 
-    socket.on('prizeClaimed', (data) => {
-      addLog(`🏆 ${data.playerName} won ${data.prizeType} (₹${data.amount})`);
+        const cell = document.getElementById(`admin-num-${data.number}`);
+        if (cell) {
+          cell.classList.add('called', 'just-called');
+          setTimeout(() => cell.classList.remove('just-called'), 2000);
+        }
 
-      const statusId = 'status' + data.prizeType.charAt(0).toUpperCase() + data.prizeType.slice(1);
-      const status = document.getElementById(statusId);
-      if (status) {
-        status.textContent = '✅ ' + data.playerName;
-        status.className = 'prize-status won';
-      }
-    });
+        updateAdminNumberBoard();
+        addLog(`🔢 Number called: ${data.number} (${data.remaining} remaining)`);
 
-    socket.on('bogusClaim', (data) => {
-      addLog(`⚠️ Bogus claim by ${data.playerName}: ${data.prizeType}`);
-      showToast(`⚠️ Invalid claim by ${data.playerName}!`, 'warning');
-    });
+        // Speak the number on admin side too
+        speakNumber(data.number);
+      });
 
-    socket.on('gameComplete', (data) => {
-      isGameStarted = false;
-      updateGameStatus();
-      addLog('🏁 All numbers called!');
-      showToast('All 90 numbers have been called!', 'info');
-    });
+      socket.on('prizeClaimed', (data) => {
+        addLog(`🏆 ${data.playerName} won ${data.prizeType} (₹${data.amount})`);
 
-    socket.on('gameEnded', () => {
-      isGameStarted = false;
-      isAutoCalling = false;
-      updateGameStatus();
-      addLog('🏁 Game ended');
-    });
+        const statusId = 'status' + data.prizeType.charAt(0).toUpperCase() + data.prizeType.slice(1);
+        const status = document.getElementById(statusId);
+        if (status) {
+          status.textContent = '✅ ' + data.playerName;
+          status.className = 'prize-status won';
+        }
+      });
 
-    socket.on('gameReset', () => {
-      isGameStarted = false;
-      isAutoCalling = false;
-      calledNumbers = [];
-      updateGameStatus();
-      renderAdminNumberBoard();
-      document.getElementById('adminCurrentNumber').textContent = '--';
-      document.getElementById('approvalsList').innerHTML = '<p class="empty-text">No pending approvals</p>';
-      document.getElementById('playersList').innerHTML = '<p class="empty-text">No players yet</p>';
-      document.getElementById('statPlayers').textContent = '0';
-      document.getElementById('statTickets').textContent = '0';
-      document.getElementById('statRevenue').textContent = '₹0';
-      document.getElementById('statCalled').textContent = '0/90';
-      addLog('🔄 Game reset');
-    });
+      socket.on('bogusClaim', (data) => {
+        addLog(`⚠️ Bogus claim by ${data.playerName}: ${data.prizeType}`);
+        showToast(`⚠️ Invalid claim by ${data.playerName}!`, 'warning');
+      });
 
-    socket.on('autoCallStarted', () => {
-      isAutoCalling = true;
-      document.getElementById('btnAutoStart').disabled = true;
-      document.getElementById('btnAutoStop').disabled = false;
-    });
+      socket.on('gameComplete', (data) => {
+        isGameStarted = false;
+        updateGameStatus();
+        addLog('🏁 All numbers called!');
+        showToast('All 90 numbers have been called!', 'info');
+      });
 
-    socket.on('autoCallStopped', () => {
-      isAutoCalling = false;
-      document.getElementById('btnAutoStart').disabled = false;
-      document.getElementById('btnAutoStop').disabled = true;
-    });
+      socket.on('gameEnded', () => {
+        isGameStarted = false;
+        isAutoCalling = false;
+        updateGameStatus();
+        addLog('🏁 Game ended');
+      });
 
-    socket.on('playerDisconnected', (data) => {
-      addLog(`👋 ${data.name} disconnected`);
-    });
+      socket.on('gameReset', () => {
+        isGameStarted = false;
+        isAutoCalling = false;
+        calledNumbers = [];
+        updateGameStatus();
+        renderAdminNumberBoard();
+        document.getElementById('adminCurrentNumber').textContent = '--';
+        document.getElementById('approvalsList').innerHTML = '<p class="empty-text">No pending approvals</p>';
+        document.getElementById('playersList').innerHTML = '<p class="empty-text">No players yet</p>';
+        document.getElementById('statPlayers').textContent = '0';
+        document.getElementById('statTickets').textContent = '0';
+        document.getElementById('statRevenue').textContent = '₹0';
+        document.getElementById('statCalled').textContent = '0/90';
+        addLog('🔄 Game reset');
+      });
+
+      socket.on('autoCallStarted', () => {
+        isAutoCalling = true;
+        document.getElementById('btnAutoStart').disabled = true;
+        document.getElementById('btnAutoStop').disabled = false;
+      });
+
+      socket.on('autoCallStopped', () => {
+        isAutoCalling = false;
+        document.getElementById('btnAutoStart').disabled = false;
+        document.getElementById('btnAutoStop').disabled = true;
+      });
+
+      socket.on('playerDisconnected', (data) => {
+        addLog(`👋 ${data.name} disconnected`);
+      });
+
+      socket.on('settingsUpdated', () => {
+        loadGameState();
+      });
+    }
 
     // ==================== SPEECH ====================
     function speakNumber(number) {
@@ -768,11 +889,30 @@
       }, 3000);
     }
 
-    // Auto login check
-    if (sessionStorage.getItem('adminToken')) {
-      document.getElementById('adminLogin').style.display = 'none';
-      document.getElementById('adminDashboard').style.display = 'block';
-      initAdmin();
+    // Enter key handlers
+    document.getElementById('createRoomPassword').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') createRoom();
+    });
+    document.getElementById('existingRoomKey').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') joinExistingRoom();
+    });
+    document.getElementById('existingRoomPassword').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') joinExistingRoom();
+    });
+
+    // Check for saved session
+    const savedRoomKey = sessionStorage.getItem('roomKey');
+    const savedToken = sessionStorage.getItem('adminToken');
+    if (savedRoomKey && savedToken) {
+      // Validate room still exists
+      fetch(`/api/room/validate/${savedRoomKey}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.valid) {
+            roomKey = savedRoomKey;
+            enterDashboard();
+          }
+        });
     }
   </script>
 </body>

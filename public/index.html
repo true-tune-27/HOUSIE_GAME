@@ -41,9 +41,43 @@
       <p class="hero-tagline">The Ultimate Tambola Experience • Play with Friends Anywhere</p>
     </div>
 
-    <!-- Join Form -->
-    <div class="join-card glass-card">
+    <!-- Step 1: Enter Room Key -->
+    <div class="join-card glass-card" id="roomKeyCard">
       <div class="card-glow"></div>
+      <h2 class="card-title">🔑 Enter Room Key</h2>
+      <p class="form-hint" style="margin-bottom: 16px; text-align: center;">Ask your game host for the room key to join</p>
+
+      <div class="form-group">
+        <label class="form-label" for="roomKeyInput">Room Key</label>
+        <div class="input-wrapper">
+          <span class="input-icon">🏠</span>
+          <input type="text" id="roomKeyInput" class="form-input" placeholder="e.g. ABC123" maxlength="6" autocomplete="off" style="text-transform: uppercase; letter-spacing: 4px; font-weight: 700; font-size: 1.2em; text-align: center;">
+        </div>
+      </div>
+
+      <button class="btn-primary btn-join" onclick="validateRoom()" id="btnValidateRoom">
+        <span class="btn-text">Join Room</span>
+        <span class="btn-icon">🚪</span>
+      </button>
+
+      <div class="divider">
+        <span>OR</span>
+      </div>
+
+      <a href="/admin" class="btn-secondary btn-admin">
+        <span class="btn-icon">🔧</span>
+        <span class="btn-text">Create / Manage Game (Admin)</span>
+      </a>
+    </div>
+
+    <!-- Step 2: Join Form (shown after valid room key) -->
+    <div class="join-card glass-card" id="joinFormCard" style="display:none;">
+      <div class="card-glow"></div>
+      <div class="room-key-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px;">
+        <span style="background: linear-gradient(135deg, #6bcb77, #4d96ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; font-size: 1.1em;">ROOM:</span>
+        <span id="roomKeyDisplay" style="background: rgba(255,255,255,0.1); padding: 4px 14px; border-radius: 8px; font-family: monospace; font-weight: 800; font-size: 1.3em; letter-spacing: 3px; color: #ffd93d;"></span>
+        <button onclick="leaveRoom()" style="background: rgba(255,107,107,0.2); border: 1px solid rgba(255,107,107,0.4); color: #ff6b6b; border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 0.85em;">✕</button>
+      </div>
       <h2 class="card-title">🎮 Join the Game</h2>
 
       <div class="form-group">
@@ -76,19 +110,10 @@
         <span class="btn-text">Join Game</span>
         <span class="btn-icon">🚀</span>
       </button>
-
-      <div class="divider">
-        <span>OR</span>
-      </div>
-
-      <a href="/admin" class="btn-secondary btn-admin">
-        <span class="btn-icon">🔧</span>
-        <span class="btn-text">Admin Panel</span>
-      </a>
     </div>
 
     <!-- Prize Pool -->
-    <div class="prize-section glass-card">
+    <div class="prize-section glass-card" id="prizeSection" style="display:none;">
       <h3 class="prize-title">🏆 Prize Pool</h3>
       <div class="prize-grid" id="prizeGrid">
         <div class="prize-item">
@@ -130,13 +155,13 @@
       <div class="steps-grid">
         <div class="step-item">
           <div class="step-number">1</div>
-          <h4>Join & Pay</h4>
-          <p>Enter your name, choose tickets, and pay via PhonePe QR</p>
+          <h4>Get Room Key</h4>
+          <p>Ask the game host for the unique room key to join</p>
         </div>
         <div class="step-item">
           <div class="step-number">2</div>
-          <h4>Wait for Approval</h4>
-          <p>Admin verifies your payment and approves your entry</p>
+          <h4>Join & Pay</h4>
+          <p>Enter your name, choose tickets, and pay via PhonePe QR</p>
         </div>
         <div class="step-item">
           <div class="step-number">3</div>
@@ -156,24 +181,82 @@
     </footer>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    // NO socket connection on landing page! Only connect when needed.
     let ticketCount = 1;
     let ticketPrice = 50;
     let maxTickets = 6;
+    let currentRoomKey = null;
 
-    // Fetch initial state
-    fetch('/api/game/state')
-      .then(r => r.json())
-      .then(state => {
-        ticketPrice = state.ticketPrice;
-        maxTickets = state.maxTicketsPerPlayer;
-        document.getElementById('ticketPriceDisplay').textContent = ticketPrice;
-        document.getElementById('maxTicketsDisplay').textContent = maxTickets;
-        updateTotal();
-        updatePrizes(state.prizes);
-      });
+    // Check URL for room key (e.g., /?room=ABC123)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoomKey = urlParams.get('room');
+    if (urlRoomKey) {
+      document.getElementById('roomKeyInput').value = urlRoomKey.toUpperCase();
+      validateRoom();
+    }
+
+    function validateRoom() {
+      const roomKey = document.getElementById('roomKeyInput').value.trim().toUpperCase();
+      if (!roomKey || roomKey.length < 4) {
+        showToast('Please enter a valid room key!', 'error');
+        document.getElementById('roomKeyInput').focus();
+        return;
+      }
+
+      const btn = document.getElementById('btnValidateRoom');
+      btn.disabled = true;
+      btn.querySelector('.btn-text').textContent = 'Checking...';
+
+      fetch(`/api/room/validate/${roomKey}`)
+        .then(r => r.json())
+        .then(data => {
+          btn.disabled = false;
+          btn.querySelector('.btn-text').textContent = 'Join Room';
+
+          if (data.valid) {
+            currentRoomKey = roomKey;
+            sessionStorage.setItem('roomKey', roomKey);
+
+            // Update UI with room info
+            ticketPrice = data.ticketPrice;
+            maxTickets = data.maxTicketsPerPlayer;
+
+            document.getElementById('roomKeyDisplay').textContent = roomKey;
+            document.getElementById('ticketPriceDisplay').textContent = ticketPrice;
+            document.getElementById('maxTicketsDisplay').textContent = maxTickets;
+            updateTotal();
+            updatePrizes(data.prizes);
+
+            // Show join form, hide room key card
+            document.getElementById('roomKeyCard').style.display = 'none';
+            document.getElementById('joinFormCard').style.display = 'block';
+            document.getElementById('prizeSection').style.display = 'block';
+
+            document.getElementById('playerName').focus();
+            showToast('✅ Room found! Enter your details to join.', 'success');
+          } else {
+            showToast('❌ Room not found! Check the key and try again.', 'error');
+            document.getElementById('roomKeyInput').focus();
+            document.getElementById('roomKeyInput').select();
+          }
+        })
+        .catch(() => {
+          btn.disabled = false;
+          btn.querySelector('.btn-text').textContent = 'Join Room';
+          showToast('Connection error. Please try again.', 'error');
+        });
+    }
+
+    function leaveRoom() {
+      currentRoomKey = null;
+      sessionStorage.removeItem('roomKey');
+      document.getElementById('roomKeyCard').style.display = 'block';
+      document.getElementById('joinFormCard').style.display = 'none';
+      document.getElementById('prizeSection').style.display = 'none';
+      document.getElementById('roomKeyInput').value = '';
+      document.getElementById('roomKeyInput').focus();
+    }
 
     function changeTicketCount(delta) {
       ticketCount = Math.max(1, Math.min(maxTickets, ticketCount + delta));
@@ -204,12 +287,18 @@
         return;
       }
 
+      if (!currentRoomKey) {
+        showToast('No room selected! Please enter a room key first.', 'error');
+        return;
+      }
+
       // Store in session
       sessionStorage.setItem('playerName', name);
       sessionStorage.setItem('ticketCount', ticketCount);
+      sessionStorage.setItem('roomKey', currentRoomKey);
 
-      // Redirect to game page
-      window.location.href = `/game?name=${encodeURIComponent(name)}&tickets=${ticketCount}`;
+      // Redirect to game page with room key
+      window.location.href = `/game?name=${encodeURIComponent(name)}&tickets=${ticketCount}&room=${currentRoomKey}`;
     }
 
     function showToast(msg, type = 'info') {
@@ -224,19 +313,12 @@
       }, 3000);
     }
 
-    // Enter key to join
+    // Enter key handlers
+    document.getElementById('roomKeyInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') validateRoom();
+    });
     document.getElementById('playerName').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') joinGame();
-    });
-
-    // Listen for settings updates
-    socket.on('settingsUpdated', (data) => {
-      if (data.ticketPrice) {
-        ticketPrice = data.ticketPrice;
-        document.getElementById('ticketPriceDisplay').textContent = ticketPrice;
-        updateTotal();
-      }
-      if (data.prizes) updatePrizes(data.prizes);
     });
   </script>
 </body>
